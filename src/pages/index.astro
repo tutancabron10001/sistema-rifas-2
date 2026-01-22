@@ -1,0 +1,154 @@
+---
+import "../styles/global.css";
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sistema de Rifas</title>
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .hero-content {
+        animation: fadeIn 0.8s ease-out;
+      }
+
+      .nav-link {
+        transition: all 0.3s ease;
+      }
+
+      .nav-link:hover {
+        transform: translateY(-2px);
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white">
+    <!-- Animated background elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-rose-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="relative z-10 bg-gradient-to-r from-pink-900/30 to-rose-900/30 backdrop-blur-xl border-b border-pink-500/30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <!-- Logo -->
+          <div class="flex items-center">
+            <span class="text-2xl font-black bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+              Sistema de Rifas
+            </span>
+          </div>
+
+          <!-- Navigation Links -->
+          <div class="hidden md:flex items-center space-x-1">
+            <a href="#" class="nav-link px-4 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+              Inicio
+            </a>
+            <a href="/usuario/eventos" class="nav-link px-4 py-2 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold shadow-lg shadow-pink-500/30">
+              Eventos Disponibles
+            </a>
+            <a href="#" class="nav-link px-4 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+              Sorteos
+            </a>
+            <a href="#" class="nav-link px-4 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+              Ganadores
+            </a>
+            <a href="#" class="nav-link px-4 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+              Contacto
+            </a>
+          </div>
+
+          <!-- Mobile Menu Button -->
+          <div class="md:hidden">
+            <button id="mobileMenuBtn" class="text-pink-200 hover:text-pink-100 p-2">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Menu -->
+      <div id="mobileMenu" class="hidden md:hidden bg-gradient-to-br from-pink-900/50 to-rose-900/50 backdrop-blur-xl border-t border-pink-500/30">
+        <div class="px-2 pt-2 pb-3 space-y-1">
+          <a href="#" class="block px-3 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+            Inicio
+          </a>
+          <a href="/usuario/eventos" class="block px-3 py-2 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 text-white font-bold">
+            Eventos Disponibles
+          </a>
+          <a href="#" class="block px-3 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+            Sorteos
+          </a>
+          <a href="#" class="block px-3 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+            Ganadores
+          </a>
+          <a href="#" class="block px-3 py-2 rounded-lg text-pink-200 hover:bg-pink-500/20 hover:text-pink-100 font-medium">
+            Contacto
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="relative z-10 flex items-center justify-center min-h-[calc(100vh-4rem)]">
+      <div class="hero-content max-w-4xl mx-auto px-4 text-center">
+        <!-- Main Heading -->
+        <h1 class="text-5xl md:text-7xl font-black mb-6 bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent leading-tight">
+          Bienvenido al<br/>Sistema de Rifas
+        </h1>
+
+        <!-- Subheading -->
+        <p class="text-xl md:text-2xl text-pink-200/80 mb-12 max-w-2xl mx-auto">
+          Participa en sorteos increíbles y gana premios espectaculares
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <a href="/usuario/eventos" class="w-full sm:w-auto bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-pink-500/50 hover:shadow-2xl hover:shadow-pink-500/60 transform hover:scale-[1.05] active:scale-95 transition-all duration-300 text-lg">
+            Ver Eventos Disponibles
+          </a>
+          <a href="#" class="w-full sm:w-auto bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white font-bold py-4 px-8 rounded-xl transition-all duration-300 text-lg">
+            Conocer Más
+          </a>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
+          <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-6 border border-pink-500/30 hover:border-pink-400/50 transition-all duration-300">
+            <div class="text-4xl mb-4">🎯</div>
+            <h3 class="text-xl font-bold text-pink-100 mb-2">Fácil de Usar</h3>
+            <p class="text-pink-200/70">Interfaz intuitiva y sencilla para participar</p>
+          </div>
+
+          <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-6 border border-pink-500/30 hover:border-pink-400/50 transition-all duration-300">
+            <div class="text-4xl mb-4">🔒</div>
+            <h3 class="text-xl font-bold text-pink-100 mb-2">100% Seguro</h3>
+            <p class="text-pink-200/70">Tus datos y transacciones protegidas</p>
+          </div>
+
+          <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-6 border border-pink-500/30 hover:border-pink-400/50 transition-all duration-300">
+            <div class="text-4xl mb-4">🎁</div>
+            <h3 class="text-xl font-bold text-pink-100 mb-2">Grandes Premios</h3>
+            <p class="text-pink-200/70">Sorteos con premios increíbles</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Mobile Menu Toggle Script -->
+    <script>
+      const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+      const mobileMenu = document.getElementById('mobileMenu');
+
+      mobileMenuBtn?.addEventListener('click', () => {
+        mobileMenu?.classList.toggle('hidden');
+      });
+    </script>
+  </body>
+</html>

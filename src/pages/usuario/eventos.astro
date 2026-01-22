@@ -1,0 +1,1097 @@
+---
+import "../../styles/global.css";
+import { db } from '../../db/client';
+import { campaigns, events, usuarios } from '../../db/schema';
+
+const list = await db.select().from(campaigns).orderBy(campaigns.createdAt);
+const eventRows = await db.select().from(events);
+const eventsByCampaign = new Map<number, typeof eventRows[number]>();
+for (const ev of eventRows) {
+  if (!eventsByCampaign.has(ev.campaignId)) {
+    eventsByCampaign.set(ev.campaignId, ev);
+  }
+}
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eventos — Sistema de Rifas</title>
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .event-card {
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      .nav-button {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .nav-button:hover {
+        transform: scale(1.1);
+      }
+
+      .nav-button:active {
+        transform: scale(0.95);
+      }
+
+      .price-badge {
+        backdrop-filter: blur(10px);
+        animation: fadeIn 0.8s ease-out 0.2s both;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white overflow-x-hidden">
+    <!-- Animated background elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-rose-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="absolute top-0 left-0 right-0 z-10 p-6">
+      <div class="flex items-center justify-between max-w-7xl mx-auto">
+        <a href="/usuario" class="group flex items-center gap-2 text-pink-200 hover:text-pink-100 transition-all duration-300">
+          <svg class="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span class="font-medium">Volver</span>
+        </a>
+        <div class="text-center">
+          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+            Eventos Disponibles
+          </h1>
+          <p class="text-sm text-pink-200/70 mt-1">Descubre oportunidades increíbles</p>
+        </div>
+        <div class="w-24"></div>
+      </div>
+    </header>
+
+    {list.length === 0 ? (
+      <main class="min-h-screen flex items-center justify-center">
+        <div class="text-center">
+          <svg class="w-24 h-24 mx-auto text-white/30 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <p class="text-xl text-white/80">Aún no hay eventos disponibles</p>
+          <p class="text-white/60 mt-2">Vuelve pronto para ver nuevas oportunidades</p>
+        </div>
+      </main>
+    ) : (
+      <main class="min-h-screen pt-32 pb-12 px-4">
+        <div id="carousel" class="max-w-7xl mx-auto">
+          {list.map((c, index) => {
+            const evento = eventsByCampaign.get(c.id);
+            const fechaRifa = evento ? new Date(evento.raffleDate).toLocaleDateString('es-ES', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
+            }) : null;
+            const promoTotal = c.promoPrice ? c.promoPrice * 3 : null;
+            
+            return (
+              <div 
+                class="event-card hidden"
+                data-index={index}
+                id={`event-${index}`}
+              >
+                <div class="grid md:grid-cols-2 gap-8 items-center">
+                  <!-- Image Section -->
+                  <div class="relative group">
+                    <div class="absolute -inset-1 bg-gradient-to-r from-pink-600 via-rose-500 to-pink-600 rounded-3xl blur-2xl opacity-40 group-hover:opacity-70 transition-opacity duration-500 animate-pulse"></div>
+                    
+                    <div class="relative bg-gradient-to-br from-pink-900/40 to-rose-900/40 p-1 rounded-3xl backdrop-blur-sm">
+                      <div class="relative bg-gradient-to-br from-gray-900 to-black p-3 rounded-3xl">
+                        <div class="relative rounded-2xl overflow-hidden shadow-2xl border border-pink-500/20 transform group-hover:scale-[1.02] transition-all duration-500">
+                          {c.imageUrl ? (
+                            <img src={c.imageUrl} alt={c.name} class="w-full h-[400px] md:h-[500px] object-cover" />
+                          ) : (
+                            <div class="w-full h-[400px] md:h-[500px] bg-gradient-to-br from-pink-900/50 to-rose-900/50 flex items-center justify-center backdrop-blur-xl">
+                              <svg class="w-32 h-32 text-pink-300/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          <div class="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-pink-400/50"></div>
+                          <div class="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-pink-400/50"></div>
+                          <div class="absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 border-pink-400/50"></div>
+                          <div class="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-pink-400/50"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Info Section -->
+                  <div class="space-y-6">
+                    <div>
+                      <h2 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-pink-300 via-rose-200 to-pink-300 bg-clip-text text-transparent leading-tight drop-shadow-lg">
+                        {c.name}
+                      </h2>
+                      {c.description ? (
+                        <p class="text-lg text-pink-100/90 leading-relaxed">{c.description}</p>
+                      ) : (
+                        <p class="text-pink-200/50 italic">Sin descripción</p>
+                      )}
+                    </div>
+
+                    <!-- Pricing Cards -->
+                    <div class="space-y-4">
+                      <div class="price-badge bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-6 border border-pink-500/30 shadow-xl hover:border-pink-400/50 hover:shadow-pink-500/20 transition-all duration-300">
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <p class="text-sm text-pink-300/80 uppercase tracking-wider font-semibold mb-1">Precio de Boleta</p>
+                            <p class="text-4xl font-black text-pink-50">${c.price.toLocaleString()}</p>
+                          </div>
+                          <svg class="w-12 h-12 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {promoTotal && (
+                        <div class="price-badge bg-gradient-to-r from-pink-600/30 to-rose-600/30 backdrop-blur-xl rounded-2xl p-6 border border-pink-400/40 shadow-xl hover:shadow-2xl hover:shadow-pink-500/30 hover:scale-[1.02] transition-all duration-300">
+                          <div class="flex items-center justify-between">
+                            <div>
+                              <p class="text-sm text-pink-300 uppercase tracking-wider font-bold mb-1 flex items-center gap-2">
+                                <span class="animate-pulse">🔥</span>
+                                Promoción Especial
+                              </p>
+                              <p class="text-xl text-pink-100 mb-1">3 boletas por</p>
+                              <p class="text-4xl font-black text-transparent bg-gradient-to-r from-pink-300 to-rose-300 bg-clip-text">
+                                ${promoTotal.toLocaleString()}
+                              </p>
+                            </div>
+                            <svg class="w-12 h-12 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+
+                      {fechaRifa && (
+                        <div class="price-badge bg-gradient-to-br from-rose-900/30 to-pink-900/30 backdrop-blur-xl rounded-2xl p-4 border border-rose-500/30">
+                          <div class="flex items-center gap-3">
+                            <svg class="w-8 h-8 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <div>
+                              <p class="text-xs text-pink-300/70 uppercase tracking-wider">Fecha de Rifa</p>
+                              <p class="text-lg font-bold text-pink-100">{fechaRifa}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <!-- CTA Button -->
+                    <button 
+                      class="participate-btn w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-pink-500/50 hover:shadow-2xl hover:shadow-pink-500/60 transform hover:scale-[1.02] active:scale-95 transition-all duration-300 text-lg border border-pink-400/30"
+                      data-event-id={evento?.id}
+                      data-campaign-id={c.id}
+                      data-campaign-name={c.name}
+                      data-event-name={evento?.name || ''}
+                      data-price={c.price}
+                      data-promo-price={c.promoPrice}
+                      data-numbers-mode={c.numbersMode}
+                    >
+                      Participar Ahora
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <!-- Navigation -->
+        {list.length > 1 && (
+          <div class="flex items-center justify-center gap-8 mt-12 relative z-10">
+            <button 
+              id="prevBtn"
+              class="nav-button bg-gradient-to-br from-pink-900/40 to-rose-900/40 hover:from-pink-800/50 hover:to-rose-800/50 backdrop-blur-xl rounded-full p-4 shadow-lg shadow-pink-500/20 border border-pink-500/30 hover:border-pink-400/50"
+              aria-label="Evento anterior"
+            >
+              <svg class="w-8 h-8 text-pink-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            <div id="indicators" class="flex gap-3">
+              {list.map((_, index) => (
+                <button
+                  class="indicator w-3 h-3 rounded-full transition-all duration-300"
+                  data-index={index}
+                  aria-label={`Ir al evento ${index + 1}`}
+                ></button>
+              ))}
+            </div>
+
+            <button 
+              id="nextBtn"
+              class="nav-button bg-gradient-to-br from-pink-900/40 to-rose-900/40 hover:from-pink-800/50 hover:to-rose-800/50 backdrop-blur-xl rounded-full p-4 shadow-lg shadow-pink-500/20 border border-pink-500/30 hover:border-pink-400/50"
+              aria-label="Siguiente evento"
+            >
+              <svg class="w-8 h-8 text-pink-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </main>
+    )}
+
+    <!-- Participants Modal -->
+    <div id="participantsModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-gradient-to-br from-gray-950 via-pink-950 to-black rounded-3xl border border-pink-500/30 max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl shadow-pink-500/30">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-gradient-to-r from-pink-600 to-rose-600 px-8 py-4 flex items-center justify-between border-b border-pink-400/30">
+          <div>
+            <h2 class="text-2xl font-bold text-white">Participar en Evento</h2>
+            <p id="modalEventTitle" class="text-pink-100 text-sm mt-1"></p>
+          </div>
+          <button onclick="closeParticipantsForm()" class="text-white/80 hover:text-white text-2xl font-bold transition-colors">✕</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="px-8 py-6 space-y-6">
+          <!-- Step 1: Cédula -->
+          <div id="cedulaStep" class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-pink-300 uppercase mb-2">Cédula de Identidad *</label>
+              <div class="flex gap-2">
+                <input 
+                  type="text" 
+                  id="cedulaInput" 
+                  placeholder="Ej: 1234567890"
+                  class="flex-1 bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+                <button onclick="searchUsuario()" class="bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold px-6 rounded-lg transition-all duration-300">
+                  Buscar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Formulario de Datos -->
+          <form id="participantForm" onsubmit="handleFormSubmit(event)" class="hidden space-y-4">
+            <input type="hidden" id="usuarioId" value="">
+            <input type="hidden" id="cedula" value="">
+
+            <div class="grid md:grid-cols-2 gap-4">
+              <!-- Primer Nombre -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Primer Nombre *</label>
+                <input 
+                  type="text" 
+                  id="primerNombre" 
+                  required
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+
+              <!-- Segundo Nombre -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Segundo Nombre</label>
+                <input 
+                  type="text" 
+                  id="segundoNombre"
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+
+              <!-- Primer Apellido -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Primer Apellido *</label>
+                <input 
+                  type="text" 
+                  id="primerApellido" 
+                  required
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+
+              <!-- Segundo Apellido -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Segundo Apellido *</label>
+                <input 
+                  type="text" 
+                  id="segundoApellido" 
+                  required
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+
+              <!-- Fecha de Nacimiento -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Fecha de Nacimiento</label>
+                <input 
+                  type="date" 
+                  id="fechaNacimiento"
+                  max={new Date().toISOString().split('T')[0]}
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition [color-scheme:dark]"
+                />
+              </div>
+
+              <!-- Departamento -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Departamento</label>
+                <select
+                  id="departamento"
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                >
+                  <option value="">Seleccionar</option>
+                  <option>Antioquia</option>
+                  <option>Atlántico</option>
+                  <option>Bogotá D.C.</option>
+                  <option>Bolívar</option>
+                  <option>Boyacá</option>
+                  <option>Caldas</option>
+                  <option>Caquetá</option>
+                  <option>Cauca</option>
+                  <option>Cesar</option>
+                  <option>Córdoba</option>
+                  <option>Cundinamarca</option>
+                  <option>Chocó</option>
+                  <option>Huila</option>
+                  <option>La Guajira</option>
+                  <option>Magdalena</option>
+                  <option>Meta</option>
+                  <option>Nariño</option>
+                  <option>Norte de Santander</option>
+                  <option>Quindío</option>
+                  <option>Risaralda</option>
+                  <option>Santander</option>
+                  <option>Sucre</option>
+                  <option>Tolima</option>
+                  <option>Valle del Cauca</option>
+                  <option>Arauca</option>
+                  <option>Casanare</option>
+                  <option>Putumayo</option>
+                  <option>San Andrés</option>
+                  <option>Amazonas</option>
+                  <option>Guainía</option>
+                  <option>Guaviare</option>
+                  <option>Vaupés</option>
+                  <option>Vichada</option>
+                </select>
+              </div>
+
+              <!-- Ciudad -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Ciudad</label>
+                <input 
+                  type="text" 
+                  id="ciudad"
+                  placeholder="Nombre de la ciudad"
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+
+              <!-- Correo -->
+              <div>
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Correo Electrónico</label>
+                <input 
+                  type="email" 
+                  id="correoElectronico"
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+
+              <!-- Teléfono -->
+              <div class="md:col-span-2">
+                <label class="block text-sm font-semibold text-pink-300 uppercase mb-1">Teléfono (+57)</label>
+                <input 
+                  type="tel" 
+                  id="telefono"
+                  placeholder="+57 3001234567"
+                  class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4">
+              <button 
+                type="button" 
+                onclick="backToSearch()" 
+                class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              >
+                Atrás
+              </button>
+              <button 
+                type="submit" 
+                class="flex-1 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-pink-500/50 transition-all duration-300"
+              >
+                Continuar
+              </button>
+            </div>
+          </form>
+
+          <!-- Step 3: Seleccionar Números -->
+          <div id="numbersStep" class="hidden space-y-6">
+            <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 p-4 rounded-2xl border border-pink-500/30">
+              <h3 class="text-lg font-bold text-pink-300 mb-2">Evento Seleccionado</h3>
+              <p class="text-white text-sm"><span class="font-semibold">Campaña:</span> <span id="numEventsCampaign"></span></p>
+              <p class="text-white text-sm"><span class="font-semibold">Evento:</span> <span id="numEventsName"></span></p>
+              <p class="text-white text-sm"><span class="font-semibold">Participante:</span> <span id="numEventsParticipant"></span></p>
+            </div>
+
+            <!-- Search Number -->
+            <div class="mb-4">
+              <label class="block text-sm font-semibold text-pink-300 uppercase mb-2">Buscar Número</label>
+              <div class="flex gap-2">
+                <input 
+                  type="text" 
+                  id="searchNumber"
+                  placeholder="Buscar número..."
+                  class="flex-1 bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                />
+                <button onclick="checkNumber()" type="button" class="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold px-6 rounded-lg transition-all duration-300">
+                  Verificar
+                </button>
+              </div>
+              <div id="searchResult" class="mt-2 hidden"></div>
+            </div>
+
+            <!-- Numbers Grid Full Width -->
+            <div class="mb-6">
+              <div class="flex justify-between items-center mb-4">
+                <label class="text-sm font-semibold text-pink-300 uppercase">Números Disponibles (400 aleatorios)</label>
+                <button onclick="refreshNumbers()" type="button" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold px-4 py-2 rounded-lg transition-all duration-300 text-sm">
+                  🔄 Actualizar
+                </button>
+              </div>
+              <div id="numbersGrid" class="grid grid-cols-6 md:grid-cols-12 gap-1 max-h-[500px] overflow-y-auto p-3 bg-gray-900/30 rounded-lg">
+                <!-- Numbers will be populated here -->
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4">
+              <button 
+                type="button" 
+                onclick="backToForm()" 
+                class="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              >
+                Atrás
+              </button>
+              <button 
+                type="button" 
+                onclick="selectNumbers()" 
+                class="selectNumberBtn flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-green-500/50 transition-all duration-300"
+                disabled
+              >
+                Confirmar Selección
+              </button>
+            </div>
+          </div>
+
+          <!-- Loading/Message -->
+          <div id="formMessage" class="hidden p-4 rounded-lg bg-green-900/30 border border-green-500/30 text-green-300"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Panel - Outside Modal, Fixed on Right -->
+    <div id="selectedNumbersSection" class="hidden fixed right-4 top-1/2 -translate-y-1/2 z-50 w-80 max-h-[85vh] overflow-y-auto">
+      <div class="bg-gradient-to-br from-pink-900/40 to-rose-900/40 backdrop-blur-xl p-6 rounded-3xl border border-pink-400/50 shadow-2xl shadow-pink-500/30">
+        <p class="text-white font-bold mb-4 text-lg">💰 Resumen de Compra</p>
+        
+        <!-- Selected Numbers -->
+        <div class="mb-5">
+          <p class="text-gray-300 text-xs uppercase mb-3 font-semibold">Números Seleccionados:</p>
+          <div id="selectedNumbersList" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto pb-2"></div>
+        </div>
+
+        <!-- Details Grid -->
+        <div class="space-y-2 mb-5 border-t border-pink-500/30 pt-4">
+          <div class="flex justify-between">
+            <span class="text-gray-300 text-sm">Cantidad:</span>
+            <span id="totalQuantity" class="font-bold text-white">0</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-300 text-sm">Promociones:</span>
+            <span id="totalPromos" class="font-bold text-yellow-400">0</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-300 text-sm">Normal:</span>
+            <span class="font-bold text-white">$<span id="normalPrice">0</span></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-300 text-sm">Promo:</span>
+            <span class="font-bold text-yellow-400">$<span id="promoPrice">0</span></span>
+          </div>
+        </div>
+
+        <!-- Total -->
+        <div class="bg-gradient-to-r from-pink-900/60 to-rose-900/60 p-4 rounded-2xl border border-pink-500/40 mb-5">
+          <p class="text-gray-300 text-xs uppercase mb-2 font-semibold">Total a Pagar:</p>
+          <p id="totalPrice" class="font-black text-3xl text-pink-300">$0</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-3">
+          <button 
+            type="button" 
+            onclick="backToForm()" 
+            class="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"
+          >
+            Atrás
+          </button>
+          <button 
+            type="button" 
+            onclick="selectNumbers()" 
+            class="selectNumberBtn w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg shadow-lg shadow-green-500/50 transition-all duration-300 text-sm"
+            disabled
+          >
+            Confirmar Selección
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let currentIndex = 0;
+      const cards = document.querySelectorAll('.event-card');
+      const indicators = document.querySelectorAll('.indicator');
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+
+      // Modal state
+      let currentEvent = null;
+      let selectedNumbers = []; // Array for multiple selection
+      let availableNumbers = [];
+      let ocupadosSet = new Set(); // Números reservados/vendidos para mostrar tachados
+
+      function showCard(index: number) {
+        cards.forEach((card, i) => {
+          if (i === index) {
+            card.classList.remove('hidden');
+          } else {
+            card.classList.add('hidden');
+          }
+        });
+
+        indicators.forEach((indicator, i) => {
+          if (i === index) {
+            indicator.classList.add('bg-pink-400', 'w-8', 'shadow-lg', 'shadow-pink-500/50');
+            indicator.classList.remove('bg-pink-500/30');
+          } else {
+            indicator.classList.add('bg-pink-500/30');
+            indicator.classList.remove('bg-pink-400', 'w-8', 'shadow-lg', 'shadow-pink-500/50');
+          }
+        });
+
+        currentIndex = index;
+      }
+
+      function nextCard() {
+        const next = (currentIndex + 1) % cards.length;
+        showCard(next);
+      }
+
+      function prevCard() {
+        const prev = (currentIndex - 1 + cards.length) % cards.length;
+        showCard(prev);
+      }
+
+      prevBtn?.addEventListener('click', prevCard);
+      nextBtn?.addEventListener('click', nextCard);
+
+      indicators.forEach((indicator, index) => {
+        indicator.addEventListener('click', () => showCard(index));
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') prevCard();
+        if (e.key === 'ArrowRight') nextCard();
+      });
+
+      if (cards.length > 0) {
+        showCard(0);
+      }
+
+      let autoPlay = setInterval(nextCard, 8000);
+      
+      document.addEventListener('click', () => {
+        clearInterval(autoPlay);
+        autoPlay = setInterval(nextCard, 8000);
+      });
+
+      // Add event listeners to participate buttons
+      document.querySelectorAll('.participate-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const eventData = {
+            eventId: this.getAttribute('data-event-id'),
+            campaignId: this.getAttribute('data-campaign-id'),
+            campaignName: this.getAttribute('data-campaign-name'),
+            eventName: this.getAttribute('data-event-name'),
+            price: parseFloat(this.getAttribute('data-price')),
+            promoPrice: this.getAttribute('data-promo-price') ? parseFloat(this.getAttribute('data-promo-price')) : null,
+            numbersMode: this.getAttribute('data-numbers-mode')
+          };
+          openParticipantsForm(eventData);
+        });
+      });
+
+      // Modal functions
+      function openParticipantsForm(eventData) {
+        currentEvent = eventData;
+        const modal = document.getElementById('participantsModal');
+        if (modal) {
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+          
+          // Set event title
+          document.getElementById('modalEventTitle').textContent = eventData.campaignName;
+        }
+      }
+
+      function closeParticipantsForm() {
+        const modal = document.getElementById('participantsModal');
+        if (modal) {
+          modal.classList.add('hidden');
+          document.body.style.overflow = 'auto';
+          resetModal();
+        }
+      }
+
+      function resetModal() {
+        document.getElementById('cedulaInput').value = '';
+        document.getElementById('participantForm').classList.add('hidden');
+        document.getElementById('numbersStep').classList.add('hidden');
+        document.getElementById('cedulaStep').classList.remove('hidden');
+        document.getElementById('formMessage').classList.add('hidden');
+        document.getElementById('usuarioId').value = '';
+        selectedNumbers = [];
+        availableNumbers = [];
+        document.getElementById('selectedNumbersSection').classList.add('hidden');
+        document.getElementById('selectedNumbersList').innerHTML = '';
+        document.querySelectorAll('.selectNumberBtn').forEach(btn => {
+          btn.disabled = true;
+          btn.textContent = 'Confirmar Selección';
+        });
+      }
+
+      function backToSearch() {
+        document.getElementById('participantForm').classList.add('hidden');
+        document.getElementById('cedulaStep').classList.remove('hidden');
+      }
+
+      function backToForm() {
+        document.getElementById('numbersStep').classList.add('hidden');
+        document.getElementById('participantForm').classList.remove('hidden');
+        selectedNumbers = [];
+        availableNumbers = [];
+        document.getElementById('selectedNumbersSection').classList.add('hidden');
+        document.querySelectorAll('.selectNumberBtn').forEach(btn => {
+          btn.disabled = true;
+          btn.textContent = 'Confirmar Selección';
+        });
+      }
+
+      async function searchUsuario() {
+        const cedula = document.getElementById('cedulaInput').value.trim();
+        if (!cedula) {
+          alert('Por favor ingresa una cédula');
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/search-usuario?cedula=${encodeURIComponent(cedula)}`);
+          const data = await response.json();
+
+          if (data.exists) {
+            document.getElementById('usuarioId').value = data.usuario.id;
+            document.getElementById('cedula').value = data.usuario.cedula;
+            document.getElementById('primerNombre').value = data.usuario.primerNombre || '';
+            document.getElementById('segundoNombre').value = data.usuario.segundoNombre || '';
+            document.getElementById('primerApellido').value = data.usuario.primerApellido || '';
+            document.getElementById('segundoApellido').value = data.usuario.segundoApellido || '';
+            document.getElementById('fechaNacimiento').value = data.usuario.fechaNacimiento || '';
+            document.getElementById('departamento').value = data.usuario.departamento || '';
+            document.getElementById('ciudad').value = data.usuario.ciudad || '';
+            document.getElementById('correoElectronico').value = data.usuario.correoElectronico || '';
+            document.getElementById('telefono').value = data.usuario.telefono || '';
+          } else {
+            document.getElementById('usuarioId').value = '';
+            document.getElementById('cedula').value = cedula;
+            document.getElementById('primerNombre').value = '';
+            document.getElementById('segundoNombre').value = '';
+            document.getElementById('primerApellido').value = '';
+            document.getElementById('segundoApellido').value = '';
+            document.getElementById('fechaNacimiento').value = '';
+            document.getElementById('departamento').value = '';
+            document.getElementById('ciudad').value = '';
+            document.getElementById('correoElectronico').value = '';
+            document.getElementById('telefono').value = '';
+          }
+
+          document.getElementById('cedulaStep').classList.add('hidden');
+          document.getElementById('participantForm').classList.remove('hidden');
+        } catch (error) {
+          console.error('Error searching usuario:', error);
+          alert('Error al buscar usuario');
+        }
+      }
+
+      async function handleFormSubmit(event: Event) {
+        event.preventDefault();
+
+        const formData = {
+          id: document.getElementById('usuarioId').value || null,
+          cedula: document.getElementById('cedula').value,
+          primerNombre: document.getElementById('primerNombre').value,
+          segundoNombre: document.getElementById('segundoNombre').value,
+          primerApellido: document.getElementById('primerApellido').value,
+          segundoApellido: document.getElementById('segundoApellido').value,
+          fechaNacimiento: document.getElementById('fechaNacimiento').value || null,
+          departamento: document.getElementById('departamento').value || null,
+          ciudad: document.getElementById('ciudad').value || null,
+          correoElectronico: document.getElementById('correoElectronico').value || null,
+          telefono: document.getElementById('telefono').value || null,
+        };
+
+        try {
+          const response = await fetch('/api/save-usuario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            // Move to numbers selection
+            showNumbersStep();
+          } else {
+            alert('Error: ' + result.error);
+          }
+        } catch (error) {
+          console.error('Error saving usuario:', error);
+          alert('Error al guardar datos');
+        }
+      }
+
+      async function showNumbersStep() {
+        document.getElementById('participantForm').classList.add('hidden');
+        document.getElementById('numbersStep').classList.remove('hidden');
+
+        // Set event info
+        document.getElementById('numEventsCampaign').textContent = currentEvent.campaignName;
+        document.getElementById('numEventsName').textContent = currentEvent.eventName;
+        document.getElementById('numEventsParticipant').textContent = 
+          document.getElementById('primerNombre').value + ' ' + document.getElementById('primerApellido').value;
+
+        // Generate and display numbers
+        await generateNumbers();
+      }
+
+      async function generateNumbers() {
+        const numbersMode = currentEvent.numbersMode;
+        let maxNumber = 0;
+
+        if (numbersMode === '0-99') maxNumber = 100;
+        else if (numbersMode === '0-999') maxNumber = 1000;
+        else if (numbersMode === '0-9999') maxNumber = 10000;
+
+        const padding = numbersMode === '0-99' ? 2 : numbersMode === '0-999' ? 3 : 4;
+
+        try {
+          // Obtener números ocupados del servidor
+          const response = await fetch(`/api/numeros-ocupados?eventId=${currentEvent.eventId}`);
+          const data = await response.json();
+          const ocupados = data.numerosOcupados || [];
+          ocupadosSet = new Set(ocupados);
+
+          // Generate all possible numbers
+          const allNumbers = Array.from({length: maxNumber}, (_, i) => i);
+          
+          // Separar disponibles de ocupados
+          const available = [];
+          const reserved = [];
+          
+          allNumbers.forEach(num => {
+            const formattedNum = String(num).padStart(padding, '0');
+            if (ocupadosSet.has(formattedNum)) {
+              reserved.push(num);
+            } else {
+              available.push(num);
+            }
+          });
+
+          // Seleccionar hasta 400 disponibles aleatoriamente
+          const shuffled = available.sort(() => 0.5 - Math.random());
+          const selectedAvailable = shuffled.slice(0, Math.min(400, available.length));
+          
+          // Combinar: disponibles seleccionados + todos los reservados
+          availableNumbers = [...selectedAvailable, ...reserved];
+          
+          displayNumbers();
+        } catch (error) {
+          console.error('Error loading available numbers:', error);
+          alert('Error al cargar números disponibles');
+        }
+      }
+
+      function displayNumbers() {
+        const numbersMode = currentEvent.numbersMode;
+        const padding = numbersMode === '0-99' ? 2 : numbersMode === '0-999' ? 3 : 4;
+        
+        const grid = document.getElementById('numbersGrid');
+        grid.innerHTML = '';
+
+        availableNumbers.sort((a, b) => a - b).forEach(num => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          const formattedNum = String(num).padStart(padding, '0');
+          button.dataset.number = formattedNum;
+          
+          // Verificar si está ocupado (reservado/vendido)
+          const isOcupado = ocupadosSet.has(formattedNum);
+          
+          if (isOcupado) {
+            // Número reservado o vendido - mostrar tachado y deshabilitado
+            button.textContent = formattedNum;
+            button.className = 'bg-gray-700 text-gray-400 font-bold py-2 rounded cursor-not-allowed line-through opacity-60';
+            button.disabled = true;
+          } else if (selectedNumbers.includes(formattedNum)) {
+            // Número seleccionado por el usuario
+            button.textContent = formattedNum;
+            button.className = 'bg-gradient-to-br from-yellow-500 to-amber-500 text-white font-bold py-2 rounded transition-all duration-300 ring-4 ring-yellow-400';
+            button.onclick = () => toggleNumber(formattedNum);
+          } else {
+            // Número disponible
+            button.textContent = formattedNum;
+            button.className = 'bg-gradient-to-br from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-2 rounded transition-all duration-300 hover:scale-110 active:scale-95';
+            button.onclick = () => toggleNumber(formattedNum);
+          }
+          
+          grid.appendChild(button);
+        });
+      }
+
+      function toggleNumber(numero: string) {
+        const index = selectedNumbers.indexOf(numero);
+        
+        if (index > -1) {
+          // Remove from selection
+          selectedNumbers.splice(index, 1);
+        } else {
+          // Add to selection
+          selectedNumbers.push(numero);
+        }
+        
+        displayNumbers();
+        updateSelectionSummary();
+      }
+
+      function updateSelectionSummary() {
+        if (selectedNumbers.length === 0) {
+          document.getElementById('selectedNumbersSection').classList.add('hidden');
+          document.querySelectorAll('.selectNumberBtn').forEach(btn => btn.disabled = true);
+          return;
+        }
+
+        document.getElementById('selectedNumbersSection').classList.remove('hidden');
+        document.querySelectorAll('.selectNumberBtn').forEach(btn => btn.disabled = false);
+
+        // Display selected numbers as badges
+        const listDiv = document.getElementById('selectedNumbersList');
+        listDiv.innerHTML = '';
+        selectedNumbers.sort().forEach(num => {
+          const badge = document.createElement('span');
+          badge.className = 'bg-pink-600 text-white px-3 py-1 rounded-full text-sm font-bold flex items-center gap-2';
+          badge.innerHTML = `${num} <button onclick="toggleNumber('${num}')" class="hover:text-red-300">\u00d7</button>`;
+          listDiv.appendChild(badge);
+        });
+
+        // Calculate pricing with promo logic
+        const quantity = selectedNumbers.length;
+        const promoSets = Math.floor(quantity / 3); // Every 3 numbers is a promo
+        const remainingNormal = quantity % 3;
+
+        const normalUnitPrice = currentEvent.price;
+        const promoUnitPrice = currentEvent.promoPrice || normalUnitPrice;
+
+        const normalTotal = remainingNormal * normalUnitPrice;
+        const promoTotal = promoSets * promoUnitPrice * 3;
+        const total = normalTotal + promoTotal;
+
+        document.getElementById('totalQuantity').textContent = quantity;
+        document.getElementById('totalPromos').textContent = promoSets;
+        document.getElementById('normalPrice').textContent = normalTotal.toLocaleString();
+        document.getElementById('promoPrice').textContent = promoTotal.toLocaleString();
+        document.getElementById('totalPrice').textContent = total.toLocaleString();
+      }
+
+      function refreshNumbers() {
+        generateNumbers();
+      }
+
+      async function checkNumber() {
+        const searchInput = document.getElementById('searchNumber').value.trim();
+        if (!searchInput) {
+          alert('Ingresa un número para buscar');
+          return;
+        }
+
+        const numbersMode = currentEvent.numbersMode;
+        const padding = numbersMode === '0-99' ? 2 : numbersMode === '0-999' ? 3 : 4;
+        const paddedNumber = searchInput.padStart(padding, '0');
+
+        const numberValue = parseInt(searchInput);
+        const maxNumber = numbersMode === '0-99' ? 100 : numbersMode === '0-999' ? 1000 : 10000;
+
+        const resultDiv = document.getElementById('searchResult');
+        resultDiv.classList.remove('hidden');
+
+        if (numberValue >= maxNumber) {
+          resultDiv.className = 'mt-2 p-3 rounded-lg bg-red-900/30 border border-red-500/30 text-red-300';
+          resultDiv.textContent = `❌ Número ${paddedNumber} no existe en este evento`;
+          return;
+        }
+
+        // Buscar el estado del número en la base de datos
+        try {
+          const response = await fetch(`/api/check-numero?eventId=${currentEvent.eventId}&numero=${paddedNumber}`);
+          const data = await response.json();
+
+          if (!data.exists) {
+            resultDiv.className = 'mt-2 p-3 rounded-lg bg-red-900/30 border border-red-500/30 text-red-300';
+            resultDiv.textContent = `❌ Número ${paddedNumber} no existe en este evento`;
+            return;
+          }
+
+          // Mostrar estado según la respuesta
+          if (data.estado === 'disponible') {
+            resultDiv.className = 'mt-2 p-3 rounded-lg bg-green-900/30 border border-green-500/30 text-green-300';
+            resultDiv.innerHTML = `✓ Número ${paddedNumber} está DISPONIBLE <button onclick="toggleNumber('${paddedNumber}')" class="ml-2 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded font-bold">Seleccionar</button>`;
+          } else if (data.estado === 'reservado') {
+            resultDiv.className = 'mt-2 p-3 rounded-lg bg-yellow-900/30 border border-yellow-500/30 text-yellow-300';
+            resultDiv.textContent = `⚠ Número ${paddedNumber} está RESERVADO`;
+          } else if (data.estado === 'vendido') {
+            resultDiv.className = 'mt-2 p-3 rounded-lg bg-red-900/30 border border-red-500/30 text-red-300';
+            resultDiv.textContent = `❌ Número ${paddedNumber} está VENDIDO`;
+          }
+        } catch (error) {
+          console.error('Error checking number:', error);
+          resultDiv.className = 'mt-2 p-3 rounded-lg bg-red-900/30 border border-red-500/30 text-red-300';
+          resultDiv.textContent = 'Error al verificar el número';
+        }
+      }
+
+      async function selectNumbers() {
+        if (selectedNumbers.length === 0) {
+          alert('Por favor selecciona al menos un número');
+          return;
+        }
+        
+        const quantity = selectedNumbers.length;
+        const cedula = document.getElementById('cedula').value;
+
+        // Calculate total price correctly
+        const promoSets = Math.floor(quantity / 3);
+        const remainingNormal = quantity % 3;
+        const normalUnitPrice = currentEvent.price;
+        const promoUnitPrice = currentEvent.promoPrice || normalUnitPrice;
+        const normalTotal = remainingNormal * normalUnitPrice;
+        const promoTotal = promoSets * promoUnitPrice * 3;
+        const totalPrice = normalTotal + promoTotal;
+
+        // Disable all buttons to prevent double submission
+        const buttons = document.querySelectorAll('.selectNumberBtn');
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.textContent = 'Guardando...';
+        });
+
+        try {
+          const response = await fetch('/api/reservar-numeros', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId: currentEvent.eventId,
+              numeros: selectedNumbers,
+              cedula: cedula,
+              precioTotal: totalPrice,
+              precioNormal: normalUnitPrice,
+              precioPromo: promoUnitPrice,
+              precioNormalTotal: normalTotal,
+              precioPromoTotal: promoTotal,
+              promociones: promoSets,
+              cantidadNormal: remainingNormal,
+              cantidadPromo: promoSets * 3
+            })
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            const precioFormateado = totalPrice.toLocaleString('es-CO', {
+              style: 'currency',
+              currency: 'COP',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+            });
+            alert(`✅ ¡Éxito! ${result.message}\nTransacción: ${result.transactionNumber}\n\nNúmeros reservados: ${result.reservedNumbers.join(', ')}\nTotal: ${precioFormateado}\n\nLos números han sido reservados a tu nombre.`);
+            closeParticipantsForm();
+          } else {
+            const errorMsg = result.error || 'Error desconocido';
+            
+            if (result.unavailableNumbers && result.unavailableNumbers.length > 0) {
+              // Mostrar mensaje detallado sobre números no disponibles
+              alert(`❌ ${errorMsg}\n\n❌ Ya reservados por otro usuario: ${result.unavailableNumbers.join(', ')}\n\n⚠️ No se ha reservado ningún número.\nPor favor, cambia tu selección y vuelve a confirmar.`);
+              
+              // NO deseleccionar - mantener la selección actual
+              // Actualizar la vista para mostrar los números reservados tachados
+              await generateNumbers();
+              updateSelectionSummary();
+            } else {
+              alert(`❌ Error: ${errorMsg}`);
+            }
+            
+            buttons.forEach(btn => {
+              btn.disabled = false;
+              btn.textContent = 'Confirmar Selección';
+            });
+          }
+        } catch (error) {
+          console.error('Error reserving numbers:', error);
+          alert('❌ Error al guardar la reserva. Por favor intenta nuevamente.');
+          buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.textContent = 'Confirmar Selección';
+          });
+        }
+      }
+
+      function selectNumberClick(numero: number, button: HTMLElement, numbersMode: string) {
+        // This function is no longer used but kept for compatibility
+      }
+
+      // Close modal on Escape
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeParticipantsForm();
+        }
+      });
+
+      // Make functions globally accessible
+      window.openParticipantsForm = openParticipantsForm;
+      window.closeParticipantsForm = closeParticipantsForm;
+      window.searchUsuario = searchUsuario;
+      window.handleFormSubmit = handleFormSubmit;
+      window.backToSearch = backToSearch;
+      window.backToForm = backToForm;
+      window.selectNumbers = selectNumbers;
+      window.toggleNumber = toggleNumber;
+      window.refreshNumbers = refreshNumbers;
+      window.checkNumber = checkNumber;
+    </script>
+  </body>
+</html>

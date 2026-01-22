@@ -1,0 +1,128 @@
+---
+import "../../styles/global.css";
+
+// Verificar si ya hay sesión
+if (Astro.cookies.has("admin_session")) {
+  return Astro.redirect("/admin");
+}
+
+// Procesar el formulario si se envió
+if (Astro.request.method === "POST") {
+  try {
+    const formData = await Astro.request.formData();
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    // Verificar credenciales
+    if (email === "tutancabron10001@gmail.com" && password === "1030555365") {
+      // Crear sesión
+      Astro.cookies.set("admin_session", "authenticated", {
+        path: "/",
+        httpOnly: true,
+        secure: false, // cambiar a true en producción con HTTPS
+        maxAge: 60 * 60 * 24 * 7, // 7 días
+      });
+      return Astro.redirect("/admin");
+    } else {
+      var errorMessage = "Credenciales incorrectas";
+    }
+  } catch (error) {
+    var errorMessage = "Error al procesar el login";
+  }
+}
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login Admin — Sistema de Rifas</title>
+    <style>
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      .login-card {
+        animation: fadeIn 0.6s ease-out;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white overflow-x-hidden flex items-center justify-center">
+    <!-- Animated background elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-rose-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+    </div>
+
+    <main class="relative z-10 w-full max-w-md p-6">
+      <div class="login-card">
+        <!-- Logo/Título -->
+        <div class="text-center mb-8">
+          <h1 class="text-4xl font-black mb-2 bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+            Sistema de Rifas
+          </h1>
+          <p class="text-pink-200/70">Módulo Administrativo</p>
+        </div>
+
+        <!-- Login Card -->
+        <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-8 border border-pink-500/30 shadow-xl">
+          <h2 class="text-2xl font-bold text-pink-100 mb-6 text-center">Iniciar Sesión</h2>
+
+          {errorMessage && (
+            <div class="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
+              {errorMessage}
+            </div>
+          )}
+
+          <form method="POST" class="space-y-4">
+            <!-- Correo -->
+            <div>
+              <label for="email" class="block text-sm font-semibold text-pink-300 uppercase mb-2">
+                Correo Electrónico
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                required
+                placeholder="admin@example.com"
+                class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+              />
+            </div>
+
+            <!-- Contraseña -->
+            <div>
+              <label for="password" class="block text-sm font-semibold text-pink-300 uppercase mb-2">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                required
+                placeholder="••••••••"
+                class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+              />
+            </div>
+
+            <!-- Botón -->
+            <button
+              type="submit"
+              class="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-pink-500/50 hover:shadow-2xl hover:shadow-pink-500/60 transform hover:scale-[1.02] active:scale-95 transition-all duration-300"
+            >
+              Ingresar
+            </button>
+          </form>
+        </div>
+
+        <!-- Link de regreso -->
+        <div class="text-center mt-6">
+          <a href="/" class="text-pink-300 hover:text-pink-200 transition-colors text-sm">
+            ← Volver al inicio
+          </a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

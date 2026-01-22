@@ -1,0 +1,862 @@
+---
+import "../../../styles/global.css";
+import { db } from '../../../db/client';
+import { campaigns, events } from '../../../db/schema';
+
+// Verificar autenticación
+if (!Astro.cookies.has("admin_session")) {
+  return Astro.redirect("/admin/login");
+}
+
+const campaignList = await db.select().from(campaigns).orderBy(campaigns.createdAt);
+const eventList = await db.select().from(events).orderBy(events.createdAt);
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Consultas — Administración</title>
+    <style>
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(12px);} to { opacity: 1; transform: translateY(0);} }
+      .card { animation: fadeIn 0.35s ease-out; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white">
+    <header class="absolute top-0 left-0 right-0 z-10 p-6">
+      <div class="flex items-center justify-between w-full max-w-7xl mx-auto px-2 md:px-4">
+        <a href="/admin" class="group flex items-center gap-2 text-pink-200 hover:text-pink-100 transition-all duration-300">
+          <svg class="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span class="font-medium">Volver</span>
+        </a>
+        <div class="text-center">
+          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+            Consultas por Cédula
+          </h1>
+          <p class="text-sm text-pink-200/70 mt-1">Movimientos y transacciones de rifas</p>
+        </div>
+        <div class="w-24"></div>
+      </div>
+    </header>
+
+    <main class="w-full max-w-none mx-auto pt-28 pb-16 px-4 md:px-8 space-y-6">
+      <!-- Tabs para cambiar entre vistas -->
+      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-2 shadow-2xl shadow-pink-500/20">
+        <div class="flex gap-2">
+          <button id="tabAsignaciones" class="flex-1 px-4 py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg transition-all">
+            📋 Asignaciones y Consultas
+          </button>
+          <button id="tabReservados" class="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-lg transition-all">
+            📊 Reservados y Pagos
+          </button>
+        </div>
+      </div>
+
+      <!-- VISTA 1: ASIGNACIONES Y CONSULTAS -->
+      <div id="viewAsignaciones" class="space-y-6">
+      <!-- Filtros colapsables -->
+      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-6 shadow-2xl shadow-pink-500/20">
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button type="button" id="filterCedulaBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-all flex items-center gap-2">
+            Cédula
+          </button>
+          <button type="button" id="filterCampaignBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-all flex items-center gap-2">
+            Campaña
+          </button>
+          <button type="button" id="filterTxBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-all flex items-center gap-2">
+            Transacción
+          </button>
+          <button id="buscarBtn" class="ml-auto bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-2 px-6 rounded-lg border border-pink-400/40 transition-all">Buscar</button>
+          <button id="limpiarBtn" type="button" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-lg border border-gray-600/60">Limpiar</button>
+        </div>
+        
+        <!-- Campos colapsables -->
+        <form id="consultaForm" class="space-y-3" onsubmit="return false;">
+          <div id="cedulaFilter" class="hidden">
+            <label class="block text-sm text-pink-200/80 mb-2">Cédula</label>
+            <input id="cedulaInput" type="text" class="w-full bg-gray-900/70 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400" placeholder="Ingresa la cédula" />
+          </div>
+          <div id="campaignFilter" class="hidden">
+            <label class="block text-sm text-pink-200/80 mb-2">Campaña</label>
+            <select id="campaignSelect" class="w-full bg-gray-900/70 border border-pink-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-pink-400">
+              <option value="">Todas</option>
+              {campaignList.map((c) => (
+                <option value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div id="txFilter" class="hidden">
+            <label class="block text-sm text-pink-200/80 mb-2">Transacción</label>
+            <input id="txInput" type="text" class="w-full bg-gray-900/70 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400" placeholder="Ej: 0005" />
+          </div>
+        </form>
+        <div id="estadoMsg" class="hidden mt-3 text-sm text-pink-200"></div>
+      </div>
+
+      <!-- Resultados -->
+      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-6 shadow-2xl shadow-pink-500/20 min-h-[320px]">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <p class="text-sm text-pink-200/70">Resultados</p>
+              <h2 class="text-xl font-bold text-pink-50">Movimientos</h2>
+            </div>
+            <div class="text-right text-sm text-pink-200/80">
+              <div><span class="font-semibold" id="totalMov">0</span> líneas</div>
+              <div><span class="font-semibold" id="totalTx">0</span> transacciones</div>
+            </div>
+          </div>
+          <div class="overflow-x-auto rounded-2xl border border-pink-500/20">
+            <table class="min-w-full text-sm">
+              <thead class="bg-pink-500/10 text-pink-100">
+                <tr>
+                  <th class="px-3 py-2 text-left">Pago</th>
+                  <th class="px-3 py-2 text-left">Abonar</th>
+                  <th class="px-3 py-2 text-left">Transacción</th>
+                  <th class="px-3 py-2 text-left">Participante</th>
+                  <th class="px-3 py-2 text-left">Correo</th>
+                  <th class="px-3 py-2 text-left">Teléfono</th>
+                  <th class="px-3 py-2 text-left">Número</th>
+                  <th class="px-3 py-2 text-left">Campaña</th>
+                  <th class="px-3 py-2 text-left">Estado</th>
+                  <th class="px-3 py-2 text-left">Tipo</th>
+                  <th class="px-3 py-2 text-left">Precio</th>
+                  <th class="px-3 py-2 text-left">Abonado</th>
+                  <th class="px-3 py-2 text-left">F. Reserva</th>
+                  <th class="px-3 py-2 text-left">F. Sorteo</th>
+                </tr>
+              </thead>
+              <tbody id="resultBody" class="divide-y divide-pink-500/10 text-white"></tbody>
+            </table>
+          </div>
+          <div class="mt-4">
+            <button id="paymentBtn" type="button" class="hidden w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold py-3 px-6 rounded-lg border border-green-400/40 transition-all">
+              Marcar Seleccionados como Pago
+            </button>
+            <button id="abonoBtn" type="button" class="hidden w-full bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold py-3 px-6 rounded-lg border border-orange-400/40 transition-all">
+              Guardar Abonos
+            </button>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <!-- VISTA 2: RESERVADOS Y PAGOS -->
+      <div id="viewReservados" class="hidden space-y-6">
+      <!-- Filtros para Reservados -->
+      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-6 shadow-2xl shadow-pink-500/20">
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button type="button" id="filterCampaignReserBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-all">
+            Campaña
+          </button>
+          <button id="buscarReserBtn" class="ml-auto bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-2 px-6 rounded-lg border border-pink-400/40 transition-all">Buscar</button>
+          <button id="limpiarReserBtn" type="button" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-lg border border-gray-600/60">Limpiar</button>
+        </div>
+        
+        <div id="campaignReserFilter" class="hidden">
+          <label class="block text-sm text-pink-200/80 mb-2">Campaña</label>
+          <select id="campaignReserSelect" class="w-full bg-gray-900/70 border border-pink-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-pink-400">
+            <option value="">Todas</option>
+            {campaignList.map((c) => (
+              <option value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div id="estadoMsgReser" class="hidden mt-3 text-sm text-pink-200"></div>
+      </div>
+
+      <!-- Resultados Reservados y Pagos -->
+      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-6 shadow-2xl shadow-pink-500/20 min-h-[320px]">
+          <!-- Barra de dinero recaudado -->
+          <div class="mb-6 p-4 bg-gray-800/50 rounded-xl border border-pink-500/20">
+            <h3 class="text-lg font-bold text-pink-100 mb-3">💰 Estado Financiero</h3>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="bg-green-900/30 border border-green-500/30 rounded-lg p-3">
+                <div class="text-xs text-green-300 mb-1">💵 Pagado</div>
+                <div class="text-xl font-bold text-green-400" id="dineroRecaudado">$0</div>
+              </div>
+              <div class="bg-orange-900/30 border border-orange-500/30 rounded-lg p-3">
+                <div class="text-xs text-orange-300 mb-1">💰 Abonado</div>
+                <div class="text-xl font-bold text-orange-400" id="dineroAbonado">$0</div>
+              </div>
+              <div class="bg-yellow-900/30 border border-yellow-500/30 rounded-lg p-3">
+                <div class="text-xs text-yellow-300 mb-1">⏳ Pendiente</div>
+                <div class="text-xl font-bold text-yellow-400" id="dineroPorRecaudar">$0</div>
+              </div>
+            </div>
+            <div class="mt-3 bg-gray-700 rounded-full h-6 overflow-hidden">
+              <div id="barraRecaudacion" class="bg-gradient-to-r from-green-500 to-emerald-500 h-full transition-all duration-500 flex items-center justify-center text-xs font-bold" style="width: 0%; color: #1f2937;">
+                <span id="porcentajeRecaudado">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <p class="text-sm text-pink-200/70">Reservaciones</p>
+              <h2 class="text-xl font-bold text-pink-50">Registros</h2>
+            </div>
+            <div class="text-right text-sm text-pink-200/80">
+              <div><span class="font-semibold" id="totalReserRows">0</span> registros</div>
+              <div><span class="font-semibold text-yellow-400" id="countReservados">0</span> Reservados</div>
+              <div><span class="font-semibold text-orange-400" id="countAbonados">0</span> Abonados</div>
+              <div><span class="font-semibold text-green-400" id="countPagos">0</span> Pagados</div>
+            </div>
+          </div>
+          <div class="overflow-x-auto rounded-2xl border border-pink-500/20">
+            <table class="min-w-full text-sm">
+              <thead class="bg-pink-500/10 text-pink-100">
+                <tr>
+                  <th class="px-3 py-2 text-left">Transacción</th>
+                  <th class="px-3 py-2 text-left">Participante</th>
+                  <th class="px-3 py-2 text-left">Correo</th>
+                  <th class="px-3 py-2 text-left">Número</th>
+                  <th class="px-3 py-2 text-left">Campaña</th>
+                  <th class="px-3 py-2 text-left">Estado</th>
+                  <th class="px-3 py-2 text-left">Tipo</th>
+                  <th class="px-3 py-2 text-left">Precio</th>
+                  <th class="px-3 py-2 text-left">Abonado</th>
+                  <th class="px-3 py-2 text-left">Fecha</th>
+                </tr>
+              </thead>
+              <tbody id="resultBodyReser" class="divide-y divide-pink-500/10 text-white"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const form = document.getElementById('consultaForm');
+      const buscarBtn = document.getElementById('buscarBtn');
+      const limpiarBtn = document.getElementById('limpiarBtn');
+      const estadoMsg = document.getElementById('estadoMsg');
+      const resultBody = document.getElementById('resultBody');
+      const totalMovEl = document.getElementById('totalMov');
+      const totalTxEl = document.getElementById('totalTx');
+      const eventSelect = document.getElementById('eventSelect');
+      const txInput = document.getElementById('txInput');
+      const campaignSelect = document.getElementById('campaignSelect');
+
+      // Filtros colapsables
+      const filterBtns = {
+        cedula: document.getElementById('filterCedulaBtn'),
+        campaign: document.getElementById('filterCampaignBtn'),
+        tx: document.getElementById('filterTxBtn')
+      };
+      const filterDivs = {
+        cedula: document.getElementById('cedulaFilter'),
+        campaign: document.getElementById('campaignFilter'),
+        tx: document.getElementById('txFilter')
+      };
+
+      Object.keys(filterBtns).forEach(key => {
+        filterBtns[key].addEventListener('click', () => {
+          const isHidden = filterDivs[key].classList.contains('hidden');
+          // Cerrar todos los filtros y restaurar colores
+          Object.keys(filterDivs).forEach(k => {
+            filterDivs[k].classList.add('hidden');
+            filterBtns[k].classList.remove('bg-pink-700');
+            filterBtns[k].classList.add('bg-pink-600');
+          });
+          // Abrir el filtro clickeado si estaba cerrado
+          if (isHidden) {
+            filterDivs[key].classList.remove('hidden');
+            filterBtns[key].classList.remove('bg-pink-600');
+            filterBtns[key].classList.add('bg-pink-700');
+            
+            // LIMPIAR RESULTADOS Y DATOS DE ENTRADA CUANDO CAMBIAS DE FILTRO
+            document.getElementById('cedulaInput').value = '';
+            campaignSelect.value = '';
+            txInput.value = '';
+            resultBody.innerHTML = '';
+            totalMovEl.textContent = '0';
+            totalTxEl.textContent = '0';
+            estadoMsg.classList.add('hidden');
+            updatePaymentButton();
+          }
+        });
+      });
+
+      form.addEventListener('submit', (e) => e.preventDefault());
+
+      campaignSelect.addEventListener('change', () => {
+        filterEventsByCampaign();
+      });
+
+      buscarBtn.addEventListener('click', async () => {
+        const cedula = document.getElementById('cedulaInput').value.trim();
+        const campaignId = campaignSelect.value;
+        const txNumber = txInput.value.trim();
+
+        if (!cedula && !campaignId && !txNumber) {
+          showMsg('Ingresa cédula, campaña o transacción para consultar');
+          return;
+        }
+        try {
+          setLoading(true);
+          const params = new URLSearchParams({ cedula });
+          if (campaignId) params.append('campaignId', campaignId);
+          if (txNumber) params.append('transactionNumber', txNumber);
+          const resp = await fetch(`/api/consultas-cedula?${params.toString()}`);
+          const data = await resp.json();
+          if (!resp.ok) {
+            showMsg(data.error || 'Error al consultar');
+            setLoading(false);
+            return;
+          }
+          renderResults(data.movimientos || []);
+          setLoading(false);
+        } catch (err) {
+          console.error(err);
+          showMsg('Error al consultar');
+          setLoading(false);
+        }
+      });
+
+      limpiarBtn.addEventListener('click', () => {
+        document.getElementById('cedulaInput').value = '';
+        campaignSelect.value = '';
+        txInput.value = '';
+        resultBody.innerHTML = '';
+        totalMovEl.textContent = '0';
+        totalTxEl.textContent = '0';
+        estadoMsg.classList.add('hidden');
+        updatePaymentButton();
+      });
+
+      function updatePaymentButton() {
+        const paymentChecked = document.querySelectorAll('.payment-checkbox:checked');
+        const abonoChecked = document.querySelectorAll('.abono-checkbox:checked');
+        const paymentBtn = document.getElementById('paymentBtn');
+        const abonoBtn = document.getElementById('abonoBtn');
+        
+        // Mostrar solo el botón correspondiente
+        if (paymentChecked.length > 0) {
+          paymentBtn.classList.remove('hidden');
+          paymentBtn.textContent = `Marcar ${paymentChecked.length} como Pago`;
+          abonoBtn.classList.add('hidden');
+        } else if (abonoChecked.length > 0) {
+          abonoBtn.classList.remove('hidden');
+          abonoBtn.textContent = `Guardar ${abonoChecked.length} Abono(s)`;
+          paymentBtn.classList.add('hidden');
+        } else {
+          paymentBtn.classList.add('hidden');
+          abonoBtn.classList.add('hidden');
+        }
+      }
+
+      function updateAbonoButton() {
+        updatePaymentButton();
+      }
+
+      document.getElementById('paymentBtn').addEventListener('click', async () => {
+        const checkedBoxes = document.querySelectorAll('.payment-checkbox:checked');
+        console.log('Botón clickeado, checkboxes seleccionados:', checkedBoxes.length);
+        
+        if (checkedBoxes.length === 0) {
+          showMsg('Selecciona al menos un número para marcar como pagado');
+          return;
+        }
+        
+        // Log detallado de cada checkbox
+        Array.from(checkedBoxes).forEach((cb, index) => {
+          console.log(`Checkbox ${index}:`, {
+            numeroId: cb.dataset.numeroId,
+            eventId: cb.dataset.eventId,
+            element: cb
+          });
+        });
+        
+        const numeros = Array.from(checkedBoxes).map(cb => ({
+          numero: cb.dataset.numeroId,
+          eventId: cb.dataset.eventId
+        }));
+        
+        console.log('Números a marcar como pagados:', numeros);
+        console.log('JSON que se enviará:', JSON.stringify({ numeros }));
+        
+        try {
+          const paymentBtn = document.getElementById('paymentBtn');
+          paymentBtn.textContent = 'Procesando...';
+          
+          const resp = await fetch(`/api/mark-payment-numbers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numeros })
+          });
+          
+          console.log('Respuesta del servidor:', resp.status);
+          const data = await resp.json();
+          console.log('Datos recibidos:', data);
+          
+          if (!resp.ok) {
+            showMsg(data.error || 'Error al marcar como pagado');
+            updatePaymentButton();
+            return;
+          }
+          
+          showMsg(`✅ ¡Éxito! ${data.count} número(s) marcado(s) como PAGADO. Correo enviado.`);
+          
+          // Limpiar checkboxes
+          checkedBoxes.forEach(cb => cb.checked = false);
+          
+          // Esperar 2 segundos y refrescar
+          setTimeout(() => {
+            buscarBtn.click();
+          }, 2000);
+          
+        } catch (err) {
+          console.error('Error completo:', err);
+          showMsg('Error al marcar como pagado: ' + err.message);
+          updatePaymentButton();
+        }
+      });
+
+      document.getElementById('abonoBtn').addEventListener('click', async () => {
+        const checkedBoxes = document.querySelectorAll('.abono-checkbox:checked');
+        
+        if (checkedBoxes.length === 0) {
+          showMsg('Selecciona al menos un número para abonar');
+          return;
+        }
+        
+        const numeros = [];
+        let hasErrors = false;
+        
+        Array.from(checkedBoxes).forEach(cb => {
+          const inputId = cb.getAttribute('data-abono-input');
+          const input = document.getElementById(inputId);
+          const precio = parseFloat(cb.dataset.precio) || 0;
+          const abonadoActual = parseFloat(cb.dataset.abonado) || 0;
+          const maxAbono = precio - abonadoActual;
+          
+          // Parsear el valor limpiando formato de moneda
+          const valorLimpio = input.value.replace(/[^\d]/g, '');
+          const abono = parseFloat(valorLimpio) || 0;
+          
+          console.log('Checkbox abono:', {
+            numeroId: cb.dataset.numeroId,
+            eventId: cb.dataset.eventId,
+            inputId: inputId,
+            abonoValue: abono,
+            precio: precio,
+            abonadoActual: abonadoActual,
+            maxAbono: maxAbono
+          });
+          
+          if (abono <= 0) {
+            showMsg('Todos los abonos deben ser mayores a 0');
+            hasErrors = true;
+            return;
+          }
+          
+          if (abono >= maxAbono) {
+            showMsg(`El abono no puede ser igual o mayor al saldo pendiente (${formatCurrency(maxAbono)}). Use "Marcar como Pago" para pagos completos.`);
+            hasErrors = true;
+            return;
+          }
+          
+          numeros.push({
+            numero: cb.dataset.numeroId,
+            eventId: cb.dataset.eventId,
+            abono: abono
+          });
+        });
+        
+        console.log('Números a abonar:', numeros);
+        
+        if (hasErrors || numeros.length === 0) return;
+        
+        try {
+          const abonoBtn = document.getElementById('abonoBtn');
+          abonoBtn.textContent = 'Procesando...';
+          
+          const resp = await fetch(`/api/mark-abono-numbers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ numeros })
+          });
+          
+          const data = await resp.json();
+          
+          if (!resp.ok) {
+            showMsg(data.error || 'Error al registrar abonos');
+            abonoBtn.textContent = 'Guardar Abonos';
+            updatePaymentButton();
+            return;
+          }
+          
+          showMsg(`✅ ¡Éxito! ${numeros.length} abono(s) registrado(s). Correo enviándose...`);
+          
+          // Limpiar checkboxes e inputs inmediatamente
+          document.querySelectorAll('.abono-checkbox:checked').forEach(cb => {
+            cb.checked = false;
+            const inputId = cb.getAttribute('data-abono-input');
+            const input = document.getElementById(inputId);
+            if (input) {
+              input.classList.add('hidden');
+              input.value = '';
+            }
+          });
+          
+          // Ocultar botón
+          abonoBtn.classList.add('hidden');
+          abonoBtn.textContent = 'Guardar Abonos';
+          
+          // Refrescar la búsqueda después de 1.5 segundos
+          setTimeout(async () => {
+            // Simular clic en buscar
+            const cedula = document.getElementById('cedulaInput').value.trim();
+            const campaignId = campaignSelect.value;
+            const txNumber = txInput.value.trim();
+            
+            if (cedula || campaignId || txNumber) {
+              setLoading(true);
+              const params = new URLSearchParams({ cedula });
+              if (campaignId) params.append('campaignId', campaignId);
+              if (txNumber) params.append('transactionNumber', txNumber);
+              
+              try {
+                const resp = await fetch(`/api/consultas-cedula?${params.toString()}`);
+                const data = await resp.json();
+                if (resp.ok) {
+                  renderResults(data.movimientos || []);
+                }
+              } catch (e) {
+                console.error('Error al refrescar:', e);
+              }
+              setLoading(false);
+            }
+          }, 1500);
+          
+        } catch (err) {
+          console.error('Error completo:', err);
+          showMsg('Error al registrar abonos: ' + err.message);
+          updatePaymentButton();
+        }
+      });
+
+      function showMsg(text) {
+        estadoMsg.textContent = text;
+        estadoMsg.classList.remove('hidden');
+      }
+
+      function filterEventsByCampaign() {
+        // Función ya no necesaria sin evento
+      }
+
+      filterEventsByCampaign();
+
+      function setLoading(isLoading) {
+        buscarBtn.textContent = isLoading ? 'Buscando...' : 'Buscar';
+        buscarBtn.disabled = isLoading;
+      }
+
+      function renderResults(rows) {
+        resultBody.innerHTML = '';
+        if (!rows.length) {
+          resultBody.innerHTML = '<tr><td colspan="14" class="px-4 py-3 text-center text-pink-200/70">Sin resultados</td></tr>';
+          totalMovEl.textContent = '0';
+          totalTxEl.textContent = '0';
+          return;
+        }
+
+        let txSet = new Set();
+        rows.forEach((row, index) => {
+          if (row.transactionNumber) txSet.add(row.transactionNumber);
+          const tr = document.createElement('tr');
+          const abonoInputId = `abono-${index}`;
+          const maxAbono = (row.precioSeleccionado || 0) - (row.abonado || 0) - 1;
+          tr.innerHTML = `
+            <td class="px-3 py-2">
+              <input type="checkbox" class="payment-checkbox w-4 h-4 cursor-pointer" data-numero-id="${row.numero}" data-event-id="${row.eventId}" />
+            </td>
+            <td class="px-3 py-2">
+              <div class="flex items-center gap-2">
+                <input type="checkbox" class="abono-checkbox w-4 h-4 cursor-pointer" data-numero-id="${row.numero}" data-event-id="${row.eventId}" data-abono-input="${abonoInputId}" data-precio="${row.precioSeleccionado || 0}" data-abonado="${row.abonado || 0}" />
+                <input type="text" id="${abonoInputId}" class="abono-input hidden w-32 bg-gray-800 border border-orange-500/30 rounded px-2 py-1 text-sm text-white" placeholder="$ 0" />
+              </div>
+            </td>
+            <td class="px-3 py-2 text-pink-200">${row.transactionNumber || '-'}</td>
+            <td class="px-3 py-2">${row.usuarioNombre || '-'}</td>
+            <td class="px-3 py-2">${row.usuarioCorreo || '-'}</td>
+            <td class="px-3 py-2">${row.usuarioTelefono || '-'}</td>
+            <td class="px-3 py-2">${row.numero || '-'}</td>
+            <td class="px-3 py-2 text-pink-100/80">${row.campaignName || '-'}</td>
+            <td class="px-3 py-2">${row.estado || '-'}</td>
+            <td class="px-3 py-2">${row.tipoPrecio === 'promocion' ? 'Promoción' : 'Normal'}</td>
+            <td class="px-3 py-2">${formatCurrency(row.precioSeleccionado)}</td>
+            <td class="px-3 py-2 text-orange-400">${formatCurrency(row.abonado || 0)}</td>
+            <td class="px-3 py-2 text-pink-200/70">${formatDate(row.fechaTransaccion)}</td>
+            <td class="px-3 py-2 text-pink-200/70">${formatDate(row.raffleDate)}</td>
+          `;
+          resultBody.appendChild(tr);
+        });
+        
+        // Event listeners para checkboxes de pago
+        document.querySelectorAll('.payment-checkbox').forEach(checkbox => {
+          checkbox.addEventListener('change', function() {
+            if (this.checked) {
+              // Desmarcar todos los checkboxes de abono
+              document.querySelectorAll('.abono-checkbox:checked').forEach(cb => {
+                cb.checked = false;
+                const inputId = cb.getAttribute('data-abono-input');
+                const input = document.getElementById(inputId);
+                input.classList.add('hidden');
+                input.value = '';
+              });
+            }
+            updatePaymentButton();
+          });
+        });
+        
+        // Event listeners para checkboxes de abono
+        document.querySelectorAll('.abono-checkbox').forEach(checkbox => {
+          checkbox.addEventListener('change', function() {
+            const inputId = this.getAttribute('data-abono-input');
+            const input = document.getElementById(inputId);
+            if (this.checked) {
+              // Desmarcar todos los checkboxes de pago
+              document.querySelectorAll('.payment-checkbox:checked').forEach(cb => {
+                cb.checked = false;
+              });
+              input.classList.remove('hidden');
+              input.value = '';
+              input.focus();
+            } else {
+              input.classList.add('hidden');
+              input.value = '';
+            }
+            updatePaymentButton();
+          });
+        });
+        
+        // Event listeners para inputs de abono - formatear como pesos colombianos
+        document.querySelectorAll('.abono-input').forEach(input => {
+          input.addEventListener('input', function(e) {
+            // Limpiar todo excepto números
+            let valor = this.value.replace(/[^\d]/g, '');
+            if (valor) {
+              // Formatear como moneda colombiana
+              const numero = parseInt(valor);
+              this.value = '$ ' + numero.toLocaleString('es-CO');
+            }
+            updatePaymentButton();
+          });
+          
+          input.addEventListener('focus', function() {
+            // Al enfocar, mostrar solo el número limpio para editar
+            let valor = this.value.replace(/[^\d]/g, '');
+            this.value = valor;
+          });
+          
+          input.addEventListener('blur', function() {
+            // Al desenfocar, formatear nuevamente
+            let valor = this.value.replace(/[^\d]/g, '');
+            if (valor) {
+              const numero = parseInt(valor);
+              this.value = '$ ' + numero.toLocaleString('es-CO');
+            } else {
+              this.value = '';
+            }
+          });
+        });
+        
+        updatePaymentButton();
+        totalMovEl.textContent = rows.length;
+        totalTxEl.textContent = txSet.size;
+      }
+
+      function formatCurrency(val) {
+        if (val === null || val === undefined || isNaN(val)) return '-';
+        return Number(val).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
+      }
+
+      function formatDate(val) {
+        if (!val) return '-';
+        try {
+          return new Date(val).toLocaleString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch {
+          return val;
+        }
+      }
+
+      // ========== TABS LOGIC ==========
+      document.getElementById('tabAsignaciones').addEventListener('click', () => {
+        document.getElementById('viewAsignaciones').classList.remove('hidden');
+        document.getElementById('viewReservados').classList.add('hidden');
+        document.getElementById('tabAsignaciones').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('tabAsignaciones').classList.add('bg-pink-600', 'hover:bg-pink-500');
+        document.getElementById('tabReservados').classList.remove('bg-pink-600', 'hover:bg-pink-500');
+        document.getElementById('tabReservados').classList.add('bg-gray-700', 'hover:bg-gray-600');
+      });
+
+      document.getElementById('tabReservados').addEventListener('click', () => {
+        document.getElementById('viewAsignaciones').classList.add('hidden');
+        document.getElementById('viewReservados').classList.remove('hidden');
+        document.getElementById('tabReservados').classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        document.getElementById('tabReservados').classList.add('bg-pink-600', 'hover:bg-pink-500');
+        document.getElementById('tabAsignaciones').classList.remove('bg-pink-600', 'hover:bg-pink-500');
+        document.getElementById('tabAsignaciones').classList.add('bg-gray-700', 'hover:bg-gray-600');
+      });
+
+      // ========== VISTA 2: RESERVADOS Y PAGOS ==========
+      const campaignReserSelect = document.getElementById('campaignReserSelect');
+      const resultBodyReser = document.getElementById('resultBodyReser');
+      const countReservados = document.getElementById('countReservados');
+      const countPagos = document.getElementById('countPagos');
+      const totalReserRows = document.getElementById('totalReserRows');
+      const estadoMsgReser = document.getElementById('estadoMsgReser');
+      const filterCampaignReserBtn = document.getElementById('filterCampaignReserBtn');
+      const campaignReserFilter = document.getElementById('campaignReserFilter');
+      const buscarReserBtn = document.getElementById('buscarReserBtn');
+      const limpiarReserBtn = document.getElementById('limpiarReserBtn');
+
+      filterCampaignReserBtn.addEventListener('click', () => {
+        const isHidden = campaignReserFilter.classList.contains('hidden');
+        campaignReserFilter.classList.toggle('hidden');
+        if (isHidden) {
+          filterCampaignReserBtn.classList.remove('bg-pink-600');
+          filterCampaignReserBtn.classList.add('bg-pink-700');
+          // Limpiar resultados
+          resultBodyReser.innerHTML = '';
+          countReservados.textContent = '0';
+          document.getElementById('countAbonados').textContent = '0';
+          countPagos.textContent = '0';
+          totalReserRows.textContent = '0';
+          document.getElementById('dineroRecaudado').textContent = '$0';
+          document.getElementById('dineroAbonado').textContent = '$0';
+          document.getElementById('dineroPorRecaudar').textContent = '$0';
+          document.getElementById('barraRecaudacion').style.width = '0%';
+          document.getElementById('porcentajeRecaudado').textContent = '0%';
+          estadoMsgReser.classList.add('hidden');
+        } else {
+          filterCampaignReserBtn.classList.remove('bg-pink-700');
+          filterCampaignReserBtn.classList.add('bg-pink-600');
+        }
+      });
+
+      buscarReserBtn.addEventListener('click', async () => {
+        const campaignId = campaignReserSelect.value;
+
+        if (!campaignId) {
+          showMsgReser('Selecciona una campaña para consultar');
+          return;
+        }
+        try {
+          buscarReserBtn.disabled = true;
+          buscarReserBtn.textContent = 'Buscando...';
+          
+          const resp = await fetch(`/api/reservados-pagos?campaignId=${campaignId}`);
+          const data = await resp.json();
+          if (!resp.ok) {
+            showMsgReser(data.error || 'Error al consultar');
+            buscarReserBtn.disabled = false;
+            buscarReserBtn.textContent = 'Buscar';
+            return;
+          }
+          renderResultsReser(data.movimientos || []);
+          buscarReserBtn.disabled = false;
+          buscarReserBtn.textContent = 'Buscar';
+        } catch (err) {
+          console.error(err);
+          showMsgReser('Error al consultar');
+          buscarReserBtn.disabled = false;
+          buscarReserBtn.textContent = 'Buscar';
+        }
+      });
+
+      limpiarReserBtn.addEventListener('click', () => {
+        campaignReserSelect.value = '';
+        resultBodyReser.innerHTML = '';
+        countReservados.textContent = '0';
+        document.getElementById('countAbonados').textContent = '0';
+        countPagos.textContent = '0';
+        totalReserRows.textContent = '0';
+        document.getElementById('dineroRecaudado').textContent = '$0';
+        document.getElementById('dineroAbonado').textContent = '$0';
+        document.getElementById('dineroPorRecaudar').textContent = '$0';
+        document.getElementById('barraRecaudacion').style.width = '0%';
+        document.getElementById('porcentajeRecaudado').textContent = '0%';
+        estadoMsgReser.classList.add('hidden');
+      });
+
+      function showMsgReser(text) {
+        estadoMsgReser.textContent = text;
+        estadoMsgReser.classList.remove('hidden');
+      }
+
+      function renderResultsReser(rows) {
+        resultBodyReser.innerHTML = '';
+        if (!rows.length) {
+          resultBodyReser.innerHTML = '<tr><td colspan="9" class="px-4 py-3 text-center text-pink-200/70">Sin resultados</td></tr>';
+          countReservados.textContent = '0';
+          document.getElementById('countAbonados').textContent = '0';
+          countPagos.textContent = '0';
+          totalReserRows.textContent = '0';
+          document.getElementById('dineroRecaudado').textContent = '$0';
+          document.getElementById('dineroAbonado').textContent = '$0';
+          document.getElementById('dineroPorRecaudar').textContent = '$0';
+          document.getElementById('barraRecaudacion').style.width = '0%';
+          document.getElementById('porcentajeRecaudado').textContent = '0%';
+          return;
+        }
+
+        let reservadosCount = 0, abonadosCount = 0, pagosCount = 0;
+        let dineroRecaudado = 0, dineroAbonado = 0, dineroPorRecaudar = 0;
+        
+        rows.forEach((row) => {
+          if (row.estado === 'reservado') {
+            reservadosCount++;
+            dineroPorRecaudar += row.precioSeleccionado || 0;
+          }
+          if (row.estado === 'abonada') {
+            abonadosCount++;
+            dineroAbonado += row.abonado || 0;
+            dineroPorRecaudar += (row.precioSeleccionado || 0) - (row.abonado || 0);
+          }
+          if (row.estado === 'pago') {
+            pagosCount++;
+            dineroRecaudado += row.precioSeleccionado || 0;
+          }
+          
+          const tr = document.createElement('tr');
+          let estadoColor = 'text-yellow-400';
+          if (row.estado === 'pago') estadoColor = 'text-green-400';
+          if (row.estado === 'abonada') estadoColor = 'text-orange-400';
+          
+          tr.innerHTML = `
+            <td class="px-3 py-2 text-pink-200">${row.transactionNumber || '-'}</td>
+            <td class="px-3 py-2">${row.usuarioNombre || '-'}</td>
+            <td class="px-3 py-2">${row.usuarioCorreo || '-'}</td>
+            <td class="px-3 py-2">${row.numero || '-'}</td>
+            <td class="px-3 py-2 text-pink-100/80">${row.eventName || '-'}</td>
+            <td class="px-3 py-2 ${estadoColor}">${row.estado || '-'}</td>
+            <td class="px-3 py-2">${row.tipoPrecio === 'promocion' ? 'Promoción' : 'Normal'}</td>
+            <td class="px-3 py-2">${formatCurrency(row.precioSeleccionado)}</td>
+            <td class="px-3 py-2 text-orange-400">${formatCurrency(row.abonado || 0)}</td>
+            <td class="px-3 py-2 text-pink-200/70">${formatDate(row.createdAt)}</td>
+          `;
+          resultBodyReser.appendChild(tr);
+        });
+
+        countReservados.textContent = reservadosCount;
+        document.getElementById('countAbonados').textContent = abonadosCount;
+        countPagos.textContent = pagosCount;
+        totalReserRows.textContent = rows.length;
+        
+        // Actualizar barra de dinero
+        document.getElementById('dineroRecaudado').textContent = formatCurrency(dineroRecaudado);
+        document.getElementById('dineroAbonado').textContent = formatCurrency(dineroAbonado);
+        document.getElementById('dineroPorRecaudar').textContent = formatCurrency(dineroPorRecaudar);
+        
+        const totalDinero = dineroRecaudado + dineroAbonado + dineroPorRecaudar;
+        const porcentaje = totalDinero > 0 ? Math.round((dineroRecaudado / totalDinero) * 100) : 0;
+        
+        document.getElementById('barraRecaudacion').style.width = porcentaje + '%';
+        document.getElementById('porcentajeRecaudado').textContent = porcentaje + '%';
+      }
+    </script>
+  </body>
+</html>

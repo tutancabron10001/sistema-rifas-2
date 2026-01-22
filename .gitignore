@@ -1,0 +1,10 @@
+node_modules
+dist
+.astro/
+.env
+data/*.sqlite
+data/*.sqlite-journal
+.vercel
+.env*.local
+turso_token.txt
+turso_url.txt

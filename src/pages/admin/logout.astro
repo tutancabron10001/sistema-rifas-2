@@ -1,0 +1,7 @@
+---
+// Eliminar la cookie de sesión
+Astro.cookies.delete("admin_session", { path: "/" });
+
+// Redirigir al login
+return Astro.redirect("/admin/login");
+---
