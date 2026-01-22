@@ -1,4 +1,4 @@
 {
-  "installCommand": "npm install --legacy-peer-deps --no-optional=false",
+  "installCommand": "npm install --legacy-peer-deps --no-fund && npm install --legacy-peer-deps @libsql/linux-x64-gnu --optional --no-save",
   "framework": "astro"
 }
