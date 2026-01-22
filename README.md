@@ -2,6 +2,8 @@
 
 Sistema completo de gestión de rifas desarrollado con **Astro (SSR)**, **Drizzle ORM**, **Turso** (SQLite en la nube), y **Tailwind CSS**.
 
+> **Auto-deploy activado**: Cada push a `master` despliega automáticamente en Vercel vía GitHub Actions.
+
 ## 🚀 Deployment en Vercel (GRATIS)
 
 ### Requisitos Previos
