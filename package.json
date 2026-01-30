@@ -18,12 +18,13 @@
   },
   "dependencies": {
     "@astrojs/vercel": "^7.7.0",
-    "@libsql/client": "^0.14.0",
+    "@libsql/client": "^0.17.0",
     "astro": "^4.0.0",
     "cloudinary": "^2.9.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.36.0",
-    "nodemailer": "^6.9.0"
+    "nodemailer": "^6.9.0",
+    "resend": "^6.8.0"
   },
   "devDependencies": {
     "@astrojs/tailwind": "^5.0.0",

@@ -4,6 +4,43 @@ Sistema completo de gestión de rifas desarrollado con **Astro (SSR)**, **Drizzl
 
 > **Auto-deploy activado**: Cada push a `master` despliega automáticamente en Vercel vía GitHub Actions.
 
+## ⏱️ Liberación automática de boletas reservadas (5 minutos)
+
+**Regla:** una boleta en `estado='reservado'` se libera automáticamente si pasan **5 minutos** sin que el administrador la cambie a `abonada` o `pago`.
+
+**Qué hace la liberación (sin borrar registros):**
+- `estado` → `disponible`
+- Limpia `numero_identificacion` y `transaction_number`
+- `tipo_precio` → `normal`
+- `abonado` → `0`
+- Limpia `reserved_at`
+- Restaura `precio_seleccionado` al `price` del evento
+
+### Endpoint
+
+- `GET/POST /api/release-expired-reservations` (opcional: `?eventId=123`)
+
+### Cómo se ejecuta
+
+1) **Con tráfico (best-effort):**
+- El sistema intenta liberar vencidas cuando el frontend consulta disponibilidad (endpoints `/api/numeros-ocupados` y `/api/check-numero`) y cuando el admin consulta movimientos (`/api/reservados-pagos`).
+
+2) **Sin tráfico (recomendado / para que nunca se queden bloqueadas):**
+- Usa un scheduler externo para llamar periódicamente `/api/release-expired-reservations`.
+
+### Scheduler con GitHub Actions
+
+Existe el workflow: `.github/workflows/release-reservations.yml`.
+
+Configura estos **Secrets** en GitHub:
+- `PROD_BASE_URL` = `https://sistema-rifas-2.vercel.app`
+- `RELEASE_RESERVATIONS_SECRET` = (una clave larga aleatoria)
+
+Configura este **Environment Variable** en Vercel:
+- `RELEASE_RESERVATIONS_SECRET` = el mismo valor
+
+> Nota: GitHub Actions tiene resolución mínima de 5 minutos. Si necesitas ejecutar cada 1 minuto, usa un servicio tipo UptimeRobot/Pingdom llamando el mismo endpoint.
+
 ## 🚀 Deployment en Vercel (GRATIS)
 
 ### Requisitos Previos

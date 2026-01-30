@@ -8,9 +8,5 @@ export default defineConfig({
   adapter: vercel({
     runtime: 'nodejs20.x'
   }),
-  vite: {
-    ssr: {
-      external: ['@libsql/client']
-    }
-  }
+  vite: {}
 });

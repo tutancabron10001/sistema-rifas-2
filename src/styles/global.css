@@ -1,3 +1,103 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+	/* Bigger, more readable typography everywhere (Tailwind uses rem). */
+	html {
+		font-size: 17px;
+	}
+
+	@media (min-width: 768px) {
+		html {
+			font-size: 18px;
+		}
+	}
+
+	body {
+		color-scheme: light;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+		text-rendering: optimizeLegibility;
+	}
+
+	:where(input, select, textarea) {
+		font-size: 1rem;
+	}
+
+	::selection {
+		background: rgb(186 230 253 / 0.45);
+	}
+}
+
+@layer components {
+	/* Optional helper classes for consistent “professional” UI. */
+	.app-card {
+		@apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-xl;
+	}
+
+	.app-card-light {
+		@apply rounded-2xl border border-slate-200/60 bg-white/80 backdrop-blur-md shadow-lg;
+	}
+
+	.app-btn {
+		@apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-bold transition-all duration-300;
+	}
+
+	.app-btn-primary {
+		@apply app-btn bg-gradient-to-r from-brand-600 to-indigo-600 text-white shadow-lg shadow-brand-500/25 hover:from-brand-500 hover:to-indigo-500;
+	}
+
+	.app-badge {
+		@apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold;
+	}
+
+	/* Light pastel primitives (useful across all pages/modals/forms). */
+	.app-surface {
+		@apply rounded-2xl border border-slate-200/70 bg-white/80 backdrop-blur-md shadow-lg;
+	}
+
+	.app-surface-muted {
+		@apply rounded-2xl border border-slate-200/70 bg-slate-50/80 backdrop-blur-md shadow-sm;
+	}
+
+	.app-input {
+		@apply w-full rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm;
+		@apply focus:outline-none focus:ring-4 focus:ring-sky-200/70 focus:border-sky-300;
+	}
+
+	.app-overlay {
+		@apply bg-slate-900/30 backdrop-blur-sm;
+	}
+
+	.app-modal {
+		@apply rounded-2xl md:rounded-3xl border border-slate-200/70 bg-white/90 backdrop-blur-md shadow-2xl;
+	}
+}
+
+@layer base {
+	/* Make every form control look consistent even when individual pages forget classes. */
+	:where(input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']), select, textarea) {
+		@apply rounded-xl border border-slate-200 bg-white/90 px-4 py-3 text-slate-900 placeholder-slate-400 shadow-sm;
+		@apply focus:outline-none focus:ring-4 focus:ring-sky-200/70 focus:border-sky-300;
+	}
+
+	:where(input[type='file']) {
+		@apply file:mr-4 file:rounded-lg file:border-0 file:bg-rose-600 file:px-4 file:py-2 file:text-white hover:file:bg-rose-500;
+	}
+
+	:where(button, a) {
+		@apply focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-200/70;
+	}
+
+	/* Welcome status carousel: one-swipe-per-card behavior on mobile */
+	#welcomeTxList {
+		scroll-snap-type: x mandatory;
+		scroll-padding-inline: 1rem;
+		-webkit-overflow-scrolling: touch;
+	}
+	#welcomeTxList > * {
+		scroll-snap-align: start;
+		scroll-snap-stop: always;
+	}
+}

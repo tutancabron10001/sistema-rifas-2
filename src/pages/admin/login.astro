@@ -48,26 +48,26 @@ if (Astro.request.method === "POST") {
       }
     </style>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white overflow-x-hidden flex items-center justify-center">
+  <body class="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-white text-slate-900 overflow-x-hidden flex items-center justify-center">
     <!-- Animated background elements -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
-      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-rose-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-rose-200/60 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-sky-200/60 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
     </div>
 
     <main class="relative z-10 w-full max-w-md p-6">
       <div class="login-card">
         <!-- Logo/Título -->
         <div class="text-center mb-8">
-          <h1 class="text-4xl font-black mb-2 bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+          <h1 class="text-4xl font-black mb-2 bg-gradient-to-r from-rose-700 via-fuchsia-700 to-sky-700 bg-clip-text text-transparent">
             Sistema de Rifas
           </h1>
-          <p class="text-pink-200/70">Módulo Administrativo</p>
+          <p class="text-slate-700">Módulo Administrativo</p>
         </div>
 
         <!-- Login Card -->
-        <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-8 border border-pink-500/30 shadow-xl">
-          <h2 class="text-2xl font-bold text-pink-100 mb-6 text-center">Iniciar Sesión</h2>
+        <div class="bg-white/75 backdrop-blur-xl rounded-2xl p-8 border border-slate-200/80 shadow-xl">
+          <h2 class="text-2xl font-extrabold text-slate-900 mb-6 text-center">Iniciar Sesión</h2>
 
           {errorMessage && (
             <div class="mb-4 bg-red-500/20 border border-red-500/50 rounded-lg p-3 text-red-200 text-sm">
@@ -78,7 +78,7 @@ if (Astro.request.method === "POST") {
           <form method="POST" class="space-y-4">
             <!-- Correo -->
             <div>
-              <label for="email" class="block text-sm font-semibold text-pink-300 uppercase mb-2">
+              <label for="email" class="block text-sm font-semibold text-slate-700 uppercase mb-2">
                 Correo Electrónico
               </label>
               <input
@@ -87,13 +87,13 @@ if (Astro.request.method === "POST") {
                 name="email"
                 required
                 placeholder="admin@example.com"
-                class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-200/50 transition"
               />
             </div>
 
             <!-- Contraseña -->
             <div>
-              <label for="password" class="block text-sm font-semibold text-pink-300 uppercase mb-2">
+              <label for="password" class="block text-sm font-semibold text-slate-700 uppercase mb-2">
                 Contraseña
               </label>
               <input
@@ -102,14 +102,14 @@ if (Astro.request.method === "POST") {
                 name="password"
                 required
                 placeholder="••••••••"
-                class="w-full bg-gray-900/50 border border-pink-500/30 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-pink-400/60 focus:bg-gray-900/70 transition"
+                class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-rose-300 focus:ring-4 focus:ring-rose-200/50 transition"
               />
             </div>
 
             <!-- Botón -->
             <button
               type="submit"
-              class="w-full bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-pink-500/50 hover:shadow-2xl hover:shadow-pink-500/60 transform hover:scale-[1.02] active:scale-95 transition-all duration-300"
+              class="w-full bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-rose-500/25 hover:shadow-2xl hover:shadow-rose-500/30 transform hover:scale-[1.02] active:scale-95 transition-all duration-300"
             >
               Ingresar
             </button>
@@ -118,7 +118,7 @@ if (Astro.request.method === "POST") {
 
         <!-- Link de regreso -->
         <div class="text-center mt-6">
-          <a href="/" class="text-pink-300 hover:text-pink-200 transition-colors text-sm">
+          <a href="/" class="text-slate-700 hover:text-slate-900 transition-colors text-sm">
             ← Volver al inicio
           </a>
         </div>

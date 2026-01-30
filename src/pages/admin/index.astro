@@ -22,49 +22,49 @@ if (!Astro.cookies.has("admin_session")) {
       }
     </style>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white">
+  <body class="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-white text-slate-900">
     <!-- Animated background elements -->
     <div class="fixed inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl animate-pulse"></div>
-      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-rose-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+      <div class="absolute top-1/4 -left-48 w-96 h-96 bg-rose-200/60 rounded-full blur-3xl animate-pulse"></div>
+      <div class="absolute bottom-1/4 -right-48 w-96 h-96 bg-sky-200/60 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
     </div>
 
     <main class="relative z-10 max-w-5xl mx-auto p-6 pt-12">
       <!-- Header -->
       <div class="text-center mb-12 admin-card">
-        <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+        <h1 class="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-rose-700 via-fuchsia-700 to-sky-700 bg-clip-text text-transparent">
           Módulo Administrativo
         </h1>
-        <p class="text-pink-200/70 text-lg">Selecciona una sección para continuar</p>
+        <p class="text-slate-700 text-lg">Selecciona una sección para continuar</p>
       </div>
 
       <!-- Cards Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <a href="/admin/campanas" class="admin-card group">
-          <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-8 border border-pink-500/30 shadow-xl hover:border-pink-400/50 hover:shadow-2xl hover:shadow-pink-500/20 transition-all duration-300 hover:scale-[1.02]">
+          <div class="bg-white/75 backdrop-blur-xl rounded-2xl p-8 border border-slate-200/80 shadow-xl hover:border-rose-200 hover:shadow-2xl hover:shadow-rose-200/40 transition-all duration-300 hover:scale-[1.02]">
             <div class="flex items-center gap-4 mb-4">
-              <div class="bg-gradient-to-br from-pink-600 to-rose-600 rounded-xl p-3">
+              <div class="bg-gradient-to-br from-rose-600 to-fuchsia-600 rounded-xl p-3 shadow-lg shadow-rose-500/20">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                 </svg>
               </div>
-              <h2 class="text-2xl font-bold text-pink-100">Campañas</h2>
+              <h2 class="text-2xl font-extrabold text-slate-900">Campañas</h2>
             </div>
-            <p class="text-pink-200/80">Gestión de campañas y eventos del sistema</p>
+            <p class="text-slate-700">Gestión de campañas y eventos del sistema</p>
           </div>
         </a>
 
         <a href="/admin/consultas" class="admin-card group">
-          <div class="bg-gradient-to-br from-pink-900/30 to-rose-900/30 backdrop-blur-xl rounded-2xl p-8 border border-pink-500/30 shadow-xl hover:border-pink-400/50 hover:shadow-2xl hover:shadow-pink-500/20 transition-all duration-300 hover:scale-[1.02]">
+          <div class="bg-white/75 backdrop-blur-xl rounded-2xl p-8 border border-slate-200/80 shadow-xl hover:border-sky-200 hover:shadow-2xl hover:shadow-sky-200/40 transition-all duration-300 hover:scale-[1.02]">
             <div class="flex items-center gap-4 mb-4">
-              <div class="bg-gradient-to-br from-pink-600 to-rose-600 rounded-xl p-3">
+              <div class="bg-gradient-to-br from-sky-600 to-indigo-600 rounded-xl p-3 shadow-lg shadow-sky-500/20">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
               </div>
-              <h2 class="text-2xl font-bold text-pink-100">Consultas</h2>
+              <h2 class="text-2xl font-extrabold text-slate-900">Consultas</h2>
             </div>
-            <p class="text-pink-200/80">Consultas y reportes del sistema</p>
+            <p class="text-slate-700">Consultas y reportes del sistema</p>
           </div>
         </a>
       </div>
@@ -72,7 +72,7 @@ if (!Astro.cookies.has("admin_session")) {
       <!-- Logout Button -->
       <div class="text-center">
         <form method="POST" action="/admin/logout">
-          <button type="submit" class="inline-flex items-center gap-2 bg-gradient-to-r from-rose-900/50 to-pink-900/50 hover:from-rose-800/60 hover:to-pink-800/60 backdrop-blur-xl text-pink-200 hover:text-pink-100 font-semibold px-6 py-3 rounded-lg border border-pink-500/30 transition-all duration-300">
+          <button type="submit" class="inline-flex items-center gap-2 bg-white/75 hover:bg-white backdrop-blur-xl text-slate-700 hover:text-slate-900 font-semibold px-6 py-3 rounded-xl border border-slate-200/80 transition-all duration-300 shadow-sm">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>

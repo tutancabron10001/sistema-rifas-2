@@ -1,6 +1,7 @@
 import { db } from '../../db/client';
 import { numerosRifa } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
+import { releaseExpiredReservations } from '../../lib/release-expired-reservations';
 
 export async function GET({ request }: any) {
   try {
@@ -13,6 +14,13 @@ export async function GET({ request }: any) {
         JSON.stringify({ error: 'EventId y numero son requeridos' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Best-effort: free expired reserved numbers before reporting current status.
+    try {
+      await releaseExpiredReservations({ eventId: parseInt(eventId) });
+    } catch (e) {
+      console.warn('Auto-release skipped:', e);
     }
 
     const result = await db

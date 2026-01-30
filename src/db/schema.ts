@@ -42,8 +42,11 @@ export const numerosRifa = sqliteTable('numeros_rifa', {
 	precioSeleccionado: real('precio_seleccionado').notNull(), // precio 1 o promoción
 	tipoPrecio: text('tipo_precio').notNull(), // 'normal' | 'promocion'
 	abonado: real('abonado').default(0), // monto abonado
+	paidAmount: real('paid_amount'), // monto pagado (para pagos directos) - no cambia al rearmar promo
 	numeroIdentificacion: text('numero_identificacion'), // cédula/ID del comprador
 	transactionNumber: text('transaction_number'), // referencia de transacción
+	reservedAt: text('reserved_at'), // ISO string (UTC) when moved to estado='reservado'
+	promoHold: integer('promo_hold').default(0), // 1 = no auto-release (promo 3 boletas)
 	createdAt: text('created_at').notNull(),
 });
 
@@ -65,6 +68,9 @@ export const transactions = sqliteTable('transactions', {
 	cantidad: integer('cantidad').notNull(),
 	promociones: integer('promociones').notNull().default(0),
 	precioTotal: real('precio_total').notNull(),
+	promoStartedAt: text('promo_started_at'), // ISO string - window for completing promo pack
+	promoExpiresAt: text('promo_expires_at'), // ISO string
+	promoFinalizedAt: text('promo_finalized_at'), // ISO string
 	createdAt: text('created_at').notNull(),
 });
 
@@ -82,5 +88,41 @@ export const usuarios = sqliteTable('usuarios', {
 	telefono: text('telefono'),
 	createdAt: text('created_at').notNull(),
 	updatedAt: text('updated_at').notNull(),
+});
+
+// Outbox for async email sending (decoupled from request handlers)
+export const emailOutbox = sqliteTable('email_outbox', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	kind: text('kind').notNull(), // 'reserva' | 'pago' | 'abono'
+	payloadJson: text('payload_json').notNull(),
+	status: text('status').notNull().default('pending'), // pending | processing | sent | failed
+	attempts: integer('attempts').notNull().default(0),
+	lastError: text('last_error'),
+	createdAt: text('created_at').notNull(), // ISO string
+	updatedAt: text('updated_at').notNull(), // ISO string
+	sentAt: text('sent_at'), // ISO string
+});
+
+// User-submitted proof image (Cloudinary) linked to a transaction
+export const transactionProofs = sqliteTable('transaction_proofs', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	transactionNumber: text('transaction_number').notNull(),
+	kind: text('kind').notNull(), // 'pago' | 'abono'
+	amount: integer('amount'), // optional; used for abonos
+	cloudinaryPublicId: text('cloudinary_public_id').notNull(),
+	cloudinaryUrl: text('cloudinary_url').notNull(),
+	status: text('status').notNull().default('pending'), // pending | validated | rejected
+	rejectedAt: text('rejected_at'),
+	rejectReason: text('reject_reason'),
+	createdAt: text('created_at').notNull(), // ISO string
+});
+
+// Admin-validated movements (NOT user-uploaded proofs)
+export const transactionMovements = sqliteTable('transaction_movements', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	transactionNumber: text('transaction_number').notNull(),
+	kind: text('kind').notNull(), // 'abono' | 'pago'
+	amount: integer('amount').notNull(),
+	createdAt: text('created_at').notNull(), // ISO string
 });
 

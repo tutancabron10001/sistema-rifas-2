@@ -1,10 +1,18 @@
 /** @type {import('tailwindcss').Config} */
+import colors from 'tailwindcss/colors';
+
 export default {
   content: [
     "./src/**/*.{astro,html,js,jsx,ts,tsx,md,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        // Softer, more "pastel" accent palette for consistent branding.
+        // (Keep Tailwind defaults for pink/rose/blue; add a dedicated brand scale.)
+        brand: colors.sky,
+      },
+    },
   },
   plugins: [],
 };

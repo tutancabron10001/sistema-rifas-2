@@ -1,6 +1,7 @@
 import { db } from '../../db/client';
 import { numerosRifa } from '../../db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
+import { releaseExpiredReservations } from '../../lib/release-expired-reservations';
 
 export async function GET({ request }: any) {
   try {
@@ -14,6 +15,13 @@ export async function GET({ request }: any) {
       );
     }
 
+    // Best-effort: free expired reserved numbers before computing occupied list.
+    try {
+      await releaseExpiredReservations({ eventId: parseInt(eventId) });
+    } catch (e) {
+      console.warn('Auto-release skipped:', e);
+    }
+
     // Obtener todos los números que NO están disponibles
     const ocupados = await db
       .select({ numero: numerosRifa.numero })
@@ -21,10 +29,7 @@ export async function GET({ request }: any) {
       .where(
         and(
           eq(numerosRifa.eventId, parseInt(eventId)),
-          or(
-            eq(numerosRifa.estado, 'reservado'),
-            eq(numerosRifa.estado, 'vendido')
-          )
+          ne(numerosRifa.estado, 'disponible')
         )
       );
 

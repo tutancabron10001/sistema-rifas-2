@@ -16,20 +16,20 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
       .card { animation: fadeIn 0.35s ease-out; }
     </style>
   </head>
-  <body class="min-h-screen bg-gradient-to-br from-gray-950 via-pink-950 to-black text-white">
+  <body class="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-white text-slate-900">
     <header class="absolute top-0 left-0 right-0 z-10 p-6">
       <div class="flex items-center justify-between w-full max-w-7xl mx-auto px-2 md:px-4">
-        <a href="/admin" class="group flex items-center gap-2 text-pink-200 hover:text-pink-100 transition-all duration-300">
+        <a href="/admin" class="group flex items-center gap-2 text-slate-700 hover:text-slate-900 transition-all duration-300">
           <svg class="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
           <span class="font-medium">Volver</span>
         </a>
         <div class="text-center">
-          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-pink-300 via-rose-300 to-pink-400 bg-clip-text text-transparent">
+          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-rose-600 via-fuchsia-600 to-sky-600 bg-clip-text text-transparent">
             Reservados y Pagos
           </h1>
-          <p class="text-sm text-pink-200/70 mt-1">Estado de rifas por evento</p>
+          <p class="text-sm text-slate-600 mt-1">Estado de rifas por evento</p>
         </div>
         <div class="w-24"></div>
       </div>
@@ -37,23 +37,23 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
 
     <main class="w-full max-w-none mx-auto pt-28 pb-16 px-4 md:px-8 space-y-6">
       <!-- Filtros colapsables -->
-      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-6 shadow-2xl shadow-pink-500/20">
+      <div class="card app-surface p-6">
         <div class="flex flex-wrap gap-2 mb-4">
-          <button type="button" id="filterCampaignBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-all flex items-center gap-2">
+          <button type="button" id="filterCampaignBtn" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all flex items-center gap-2 font-bold">
             Campaña
           </button>
-          <button type="button" id="filterEventBtn" class="px-4 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg transition-all flex items-center gap-2">
+          <button type="button" id="filterEventBtn" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all flex items-center gap-2 font-bold">
             Evento
           </button>
-          <button id="buscarBtn" class="ml-auto bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold py-2 px-6 rounded-lg border border-pink-400/40 transition-all">Buscar</button>
-          <button id="limpiarBtn" type="button" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-lg border border-gray-600/60">Limpiar</button>
+          <button id="buscarBtn" class="ml-auto bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white font-extrabold py-2 px-6 rounded-xl border border-rose-200/60 transition-all">Buscar</button>
+          <button id="limpiarBtn" type="button" class="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold rounded-xl border border-slate-200">Limpiar</button>
         </div>
         
         <!-- Campos colapsables -->
         <form id="filtroForm" class="space-y-3" onsubmit="return false;">
           <div id="campaignFilter" class="hidden">
-            <label class="block text-sm text-pink-200/80 mb-2">Campaña</label>
-            <select id="campaignSelect" class="w-full bg-gray-900/70 border border-pink-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-pink-400">
+            <label class="block text-sm text-slate-700 font-bold mb-2">Campaña</label>
+            <select id="campaignSelect" class="app-input">
               <option value="">Todas</option>
               {campaignList.map((c) => (
                 <option value={c.id}>{c.name}</option>
@@ -61,8 +61,8 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
             </select>
           </div>
           <div id="eventFilter" class="hidden">
-            <label class="block text-sm text-pink-200/80 mb-2">Evento (nombre)</label>
-            <select id="eventSelect" class="w-full bg-gray-900/70 border border-pink-500/30 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-pink-400">
+            <label class="block text-sm text-slate-700 font-bold mb-2">Evento (nombre)</label>
+            <select id="eventSelect" class="app-input">
               <option value="">Todos</option>
               {eventList.map((e) => (
                 <option value={e.name} data-campaign={e.campaignId}>{e.name}</option>
@@ -70,24 +70,24 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
             </select>
           </div>
         </form>
-        <div id="estadoMsg" class="hidden mt-3 text-sm text-pink-200"></div>
+        <div id="estadoMsg" class="hidden mt-3 text-sm text-slate-700"></div>
       </div>
 
       <!-- Resultados -->
-      <div class="card bg-gradient-to-br from-gray-900/70 to-black/70 border border-pink-500/30 rounded-3xl p-6 shadow-2xl shadow-pink-500/20 min-h-[320px]">
+      <div class="card app-surface p-6 min-h-[320px]">
           <div class="flex items-center justify-between mb-4">
             <div>
-              <p class="text-sm text-pink-200/70">Resultados</p>
-              <h2 class="text-xl font-bold text-pink-50">Números Reservados y Pagados</h2>
+              <p class="text-sm text-slate-600">Resultados</p>
+              <h2 class="text-xl font-extrabold text-slate-900">Números Reservados y Pagados</h2>
             </div>
-            <div class="text-right text-sm text-pink-200/80">
+            <div class="text-right text-sm text-slate-600">
               <div><span class="font-semibold" id="totalLineas">0</span> líneas</div>
-              <div class="mt-1"><span class="font-semibold text-green-400" id="totalPagos">0</span> pagados | <span class="font-semibold text-yellow-400" id="totalReservados">0</span> reservados</div>
+              <div class="mt-1"><span class="font-semibold text-emerald-700" id="totalPagos">0</span> pagados | <span class="font-semibold text-amber-700" id="totalReservados">0</span> reservados</div>
             </div>
           </div>
-          <div class="overflow-x-auto rounded-2xl border border-pink-500/20">
+          <div class="overflow-x-auto rounded-2xl border border-slate-200">
             <table class="min-w-full text-sm">
-              <thead class="bg-pink-500/10 text-pink-100">
+              <thead class="bg-rose-50 text-slate-700">
                 <tr>
                   <th class="px-3 py-2 text-left">Evento</th>
                   <th class="px-3 py-2 text-left">Número</th>
@@ -101,7 +101,7 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
                   <th class="px-3 py-2 text-left">F. Registro</th>
                 </tr>
               </thead>
-              <tbody id="resultBody" class="divide-y divide-pink-500/10 text-white"></tbody>
+              <tbody id="resultBody" class="divide-y divide-slate-200 text-slate-900"></tbody>
             </table>
           </div>
         </div>
@@ -213,7 +213,7 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
       function renderResults(rows) {
         resultBody.innerHTML = '';
         if (!rows.length) {
-          resultBody.innerHTML = '<tr><td colspan="10" class="px-4 py-3 text-center text-pink-200/70">Sin resultados</td></tr>';
+          resultBody.innerHTML = '<tr><td colspan="10" class="px-4 py-3 text-center text-slate-600">Sin resultados</td></tr>';
           totalLineasEl.textContent = '0';
           totalPagosEl.textContent = '0';
           totalReservadosEl.textContent = '0';
@@ -225,18 +225,18 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
           if (row.estado === 'pago') pagos++;
           if (row.estado === 'reservado') reservados++;
           const tr = document.createElement('tr');
-          const estadoColor = row.estado === 'pago' ? 'text-green-400' : 'text-yellow-400';
+          const estadoColor = row.estado === 'pago' ? 'text-emerald-700' : 'text-amber-700';
           tr.innerHTML = `
-            <td class="px-3 py-2 text-pink-100/80">${row.eventName || '-'}</td>
+            <td class="px-3 py-2 text-slate-700">${row.eventName || '-'}</td>
             <td class="px-3 py-2">${row.numero || '-'}</td>
             <td class="px-3 py-2 ${estadoColor} font-semibold">${row.estado || '-'}</td>
             <td class="px-3 py-2">${row.tipoPrecio === 'promocion' ? 'Promoción' : 'Normal'}</td>
             <td class="px-3 py-2">${formatCurrency(row.precioSeleccionado)}</td>
-            <td class="px-3 py-2 text-pink-200">${row.cedula || '-'}</td>
+            <td class="px-3 py-2 text-slate-900 font-semibold">${row.cedula || '-'}</td>
             <td class="px-3 py-2">${row.usuarioNombre || '-'}</td>
             <td class="px-3 py-2">${row.usuarioCorreo || '-'}</td>
             <td class="px-3 py-2">${row.usuarioTelefono || '-'}</td>
-            <td class="px-3 py-2 text-pink-200/70">${formatDate(row.createdAt)}</td>
+            <td class="px-3 py-2 text-slate-600">${formatDate(row.createdAt)}</td>
           `;
           resultBody.appendChild(tr);
         });
