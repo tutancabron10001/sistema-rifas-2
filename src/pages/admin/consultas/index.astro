@@ -279,11 +279,207 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     
     // Load data
     loadPendingActions(currentMode);
+    
+    // Setup modal form listeners
+    setupModalFormListeners();
   });
 
-  // Setup event listeners
-  function setupEventListeners() {
-    // No need for tab listeners since they're in sidebar now
+  // Setup modal form listeners
+  function setupModalFormListeners() {
+    // Admin Abono form submission
+    const adminAbonoForm = document.getElementById('adminAbonoForm');
+    if (adminAbonoForm) {
+      adminAbonoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const txNum = String(adminAbonoCtx?.tx || '').trim();
+        if (!txNum) return;
+
+        const input = document.getElementById('adminAbonoAmountInput');
+        const raw = input ? String(input.value || '') : '';
+        const amount = Number(raw.replace(/[^\d]/g, ''));
+        if (!Number.isFinite(amount) || amount <= 0) {
+          setAdminAbonoStatus('Monto inválido.');
+          return;
+        }
+
+        const btn = document.getElementById('adminAbonoConfirm');
+        const prevText = btn ? btn.textContent : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Procesando…';
+        }
+        setAdminAbonoStatus('Registrando abono…');
+
+        try {
+          const resp = await fetch('/api/mark-abono-transaction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              transactionNumber: txNum, 
+              amount, 
+              proofId: Number(adminAbonoCtx?.proofId ?? 0) || 0 
+            }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) {
+            setAdminAbonoStatus(data?.error || 'Error registrando abono');
+            return;
+          }
+
+          setAdminAbonoStatus('Abono registrado. Actualizando…');
+          await loadPendingActions(currentMode);
+          closeAdminAbono();
+        } catch (e) {
+          console.error(e);
+          setAdminAbonoStatus('Error registrando abono');
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = prevText;
+          }
+        }
+      });
+    }
+
+    // Admin Pago form submission
+    const adminPagoForm = document.getElementById('adminPagoForm');
+    if (adminPagoForm) {
+      adminPagoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const txNum = String(adminPagoCtx?.tx || '').trim();
+        if (!txNum) return;
+
+        const numbers = Array.isArray(adminPagoCtx?.numbers) ? adminPagoCtx.numbers : [];
+        if (!numbers.length) {
+          setAdminPagoStatus('No hay números asociados a esta transacción.');
+          return;
+        }
+
+        const btn = document.getElementById('adminPagoConfirm');
+        const prevText = btn ? btn.textContent : '';
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Procesando…';
+        }
+        setAdminPagoStatus('Registrando pago…');
+
+        try {
+          // Detectar el kind del comprobante para usar el endpoint correcto
+          const tx = adminPagoCtx.tx;
+          const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
+          const proof = proofs.find((p) => p.id === adminPagoCtx.proofId);
+          const proofKind = proof ? String(proof.kind || '').toLowerCase() : '';
+          const proofAmount = proof && proof.amount != null ? Number(proof.amount) : null;
+
+          // Si el comprobante es de tipo 'abono', usar el endpoint de abono
+          if (proofKind === 'abono' && proofAmount != null && Number.isFinite(proofAmount) && proofAmount > 0) {
+            const payload = {
+              transactionNumber: tx,
+              amount: Math.trunc(proofAmount),
+              proofId: adminPagoCtx.proofId,
+            };
+
+            const resp = await fetch('/api/mark-abono-transaction', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            
+            const data = await resp.json();
+            if (!resp.ok) {
+              setAdminPagoStatus(data?.error || 'Error registrando abono');
+              return;
+            }
+          } else {
+            // Usar endpoint de validación para pagos
+            const resp = await fetch('/api/admin/validate-proofs', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ 
+                transactionNumber: txNum,
+                kind: 'pago'
+              }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              setAdminPagoStatus(data?.error || 'Error validando pagos');
+              return;
+            }
+          }
+
+          setAdminPagoStatus('Pago registrado. Actualizando…');
+          await loadPendingActions(currentMode);
+          closeAdminPago();
+        } catch (e) {
+          console.error(e);
+          setAdminPagoStatus('Error registrando pago');
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = prevText;
+          }
+        }
+      });
+    }
+
+    // COP formatting for admin abono input
+    const adminAbonoInput = document.getElementById('adminAbonoAmountInput');
+    if (adminAbonoInput) {
+      adminAbonoInput.addEventListener('input', function () {
+        try {
+          let valor = String(this.value || '').replace(/[^\d]/g, '');
+          if (valor) {
+            const numero = parseInt(valor, 10);
+            this.value = '$ ' + (Number.isFinite(numero) ? numero.toLocaleString('es-CO') : '');
+          } else {
+            this.value = '';
+          }
+        } catch {
+          // ignore
+        }
+      });
+    }
+
+    // Modal close buttons
+    const adminAbonoCloseBtn = document.getElementById('adminAbonoCloseBtn');
+    if (adminAbonoCloseBtn) {
+      adminAbonoCloseBtn.addEventListener('click', closeAdminAbono);
+    }
+
+    const adminAbonoCancel = document.getElementById('adminAbonoCancel');
+    if (adminAbonoCancel) {
+      adminAbonoCancel.addEventListener('click', closeAdminAbono);
+    }
+
+    const adminPagoCloseBtn = document.getElementById('adminPagoCloseBtn');
+    if (adminPagoCloseBtn) {
+      adminPagoCloseBtn.addEventListener('click', closeAdminPago);
+    }
+
+    const adminPagoCancel = document.getElementById('adminPagoCancel');
+    if (adminPagoCancel) {
+      adminPagoCancel.addEventListener('click', closeAdminPago);
+    }
+
+    // Proof history modal close
+    const proofHistoryCloseBtn = document.getElementById('proofHistoryCloseBtn');
+    if (proofHistoryCloseBtn) {
+      proofHistoryCloseBtn.addEventListener('click', closeProofHistory);
+    }
+  }
+
+  // Action handlers
+  function viewTransaction(txNumber) {
+    console.log('View transaction:', txNumber);
+    openProofHistory(txNumber);
+  }
+
+  function validateTransaction(txNumber) {
+    console.log('Validate transaction:', txNumber);
+    // Implement validation logic
   }
 
   // Load pending actions (existing function)
@@ -300,9 +496,32 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
       if (response.ok && data) {
         pendingData = data.items || [];
         console.log('✅ Data loaded successfully:', pendingData.length, 'items');
+        
+        // Merge into caches so the proof-history modal works from here
+        pendingData.forEach((it) => {
+          const tx = String(it?.transactionNumber || '').trim();
+          if (!tx) return;
+          const proofs = Array.isArray(it?.proofs) ? it.proofs : [];
+          proofsByTx[tx] = proofs;
+          txAggByNumber[tx] = {
+            totalPrice: Number(it?.totalPrice ?? 0) || 0,
+            totalAbonado: Number(it?.totalAbonado ?? 0) || 0,
+            paidCount: Number(it?.paidCount ?? 0) || 0,
+            creditedTotal: Number(it?.creditedTotal ?? 0) || 0,
+            saldoPendiente: Number(it?.saldoPendiente ?? 0) || 0,
+          };
+        });
+        
         renderPendingActions(pendingData);
         renderTransactionsTable(pendingData);
         updateStatistics(data);
+        
+        // Setup event listeners after rendering
+        setupEventListeners();
+        
+        // Start countdown timers
+        ensureCountdownInterval();
+        updateAllCountdowns();
       } else {
         console.error('❌ Error loading pending actions:', data.error || 'Unknown error');
         // Show error message to user
@@ -333,6 +552,37 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
         `;
       }
     }
+  }
+
+  // Setup event listeners for buttons
+  function setupEventListeners() {
+    // Proof history buttons
+    document.querySelectorAll('.proof-history-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tx = btn.getAttribute('data-tx');
+        if (tx) openProofHistory(tx);
+      });
+    });
+
+    // Pay full transaction
+    document.querySelectorAll('button.admin-pay').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const txNum = String(btn.getAttribute('data-tx') || '').trim();
+        if (!txNum) return;
+        const item = (Array.isArray(pendingData) ? pendingData : []).find((x) => String(x?.transactionNumber || '').trim() === txNum);
+        openAdminPago(txNum, item);
+      });
+    });
+
+    // Abono by transaction (admin enters amount)
+    document.querySelectorAll('button.admin-abono').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const txNum = String(btn.getAttribute('data-tx') || '').trim();
+        if (!txNum) return;
+        const item = (Array.isArray(pendingData) ? pendingData : []).find((x) => String(x?.transactionNumber || '').trim() === txNum);
+        openAdminAbono(txNum, item);
+      });
+    });
   }
 
   // Render pending actions
@@ -463,18 +713,365 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     }
   }
 
-  // Action handlers
-  function viewTransaction(txNumber) {
-    console.log('View transaction:', txNumber);
-    openModal('proofHistoryModal');
+  // Global variables for proofs and transactions
+  let proofsByTx = {};
+  let txAggByNumber = {};
+  let countdownInterval = null;
+
+  // Countdown timer functions
+  function formatRemaining(ms) {
+    if (!Number.isFinite(ms)) return '—';
+    if (ms <= 0) return '00:00';
+    const total = Math.ceil(ms / 1000);
+    const hrs = Math.floor(total / 3600);
+    const mins = Math.floor((total % 3600) / 60);
+    const secs = total % 60;
+    const pad = (n) => String(n).padStart(2, '0');
+    return hrs > 0 ? `${hrs}:${pad(mins)}:${pad(secs)}` : `${mins}:${pad(secs)}`;
   }
 
-  function validateTransaction(txNumber) {
-    console.log('Validate transaction:', txNumber);
-    // Implement validation logic
+  function updateCountdownElement(el) {
+    if (!el) return;
+    const expiresAt = String(el.getAttribute('data-expires-at') || '').trim();
+    const prefix = String(el.getAttribute('data-prefix') || '').trim();
+    if (!expiresAt) return;
+    const expMs = Date.parse(expiresAt);
+    if (!Number.isFinite(expMs)) return;
+    const remaining = expMs - Date.now();
+    el.textContent = remaining > 0
+      ? `${prefix}${formatRemaining(remaining)}`
+      : 'Tiempo agotado';
   }
 
-  // Include existing renderTransactionCard function (enhanced)
+  function updateAllCountdowns() {
+    document.querySelectorAll('.countdown-timer[data-expires-at]').forEach((el) => {
+      updateCountdownElement(el);
+    });
+  }
+
+  function ensureCountdownInterval() {
+    if (countdownInterval) return;
+    countdownInterval = setInterval(updateAllCountdowns, 1000);
+  }
+
+  // Proof history modal functions
+  function openProofHistory(transactionNumber) {
+    const modal = document.getElementById('proofHistoryModal');
+    const title = document.getElementById('proofHistoryTitle');
+    const summary = document.getElementById('proofHistorySummary');
+    const grid = document.getElementById('proofHistoryGrid');
+    const empty = document.getElementById('proofHistoryEmpty');
+    const rejGrid = document.getElementById('proofHistoryRejectedGrid');
+    const rejEmpty = document.getElementById('proofHistoryRejectedEmpty');
+    
+    if (!modal || !grid || !empty || !rejGrid || !rejEmpty) return;
+
+    const proofs = (proofsByTx && transactionNumber && proofsByTx[transactionNumber]) ? proofsByTx[transactionNumber] : [];
+    const rejected = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() === 'rejected');
+    const considered = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected');
+    const agg = (txAggByNumber && transactionNumber && txAggByNumber[transactionNumber]) ? txAggByNumber[transactionNumber] : null;
+    
+    const pendingCount = considered.filter((p) => String(p?.status || 'pending').toLowerCase() === 'pending').length;
+    
+    grid.innerHTML = '';
+    rejGrid.innerHTML = '';
+    
+    if (title) title.textContent = transactionNumber ? `Transacción #${transactionNumber}` : '';
+    if (summary) {
+      if (agg) {
+        summary.textContent = `Total: $${Number(agg.totalPrice || 0).toLocaleString()} • Registrado: $${Number(agg.creditedTotal || 0).toLocaleString()} • Pendiente: $${Number(agg.saldoPendiente || 0).toLocaleString()} • Comprobantes pendientes: ${pendingCount}`;
+      } else {
+        summary.textContent = `Comprobantes pendientes: ${pendingCount}`;
+      }
+    }
+
+    if (!Array.isArray(proofs) || proofs.length === 0) {
+      empty.classList.remove('hidden');
+      rejEmpty.classList.remove('hidden');
+    } else {
+      empty.classList.add('hidden');
+
+      // Normal proofs grid
+      const sorted = [...considered].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      sorted.forEach((p) => {
+        const card = document.createElement('a');
+        card.href = p.url;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.className = 'relative block bg-white/90 border border-slate-200 rounded-xl overflow-hidden hover:bg-white transition';
+
+        const isPending = String(p?.status || 'pending').toLowerCase() === 'pending';
+
+        const img = document.createElement('img');
+        img.src = p.url;
+        img.alt = 'Comprobante';
+        img.className = 'w-full h-28 object-cover';
+
+        const badge = document.createElement('div');
+        badge.className = 'absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center bg-white/90 border border-slate-200 backdrop-blur-sm shadow-lg';
+        badge.innerHTML = isPending
+          ? '<span class="text-2xl leading-none text-amber-700 font-black">⏳</span>'
+          : '<span class="text-2xl leading-none text-emerald-700 font-black">✓</span>';
+
+        const rejectBtn = document.createElement('button');
+        rejectBtn.type = 'button';
+        rejectBtn.className = 'absolute top-2 left-2 px-2 h-8 rounded-xl bg-white/90 border border-rose-200 text-rose-700 text-xs font-black hover:bg-rose-50 backdrop-blur-sm shadow-lg';
+        rejectBtn.textContent = 'Rechazar';
+        rejectBtn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const proofId = Number(p?.id ?? 0);
+          if (!Number.isFinite(proofId) || proofId <= 0) return;
+          const reason = prompt('Motivo del rechazo (opcional):', '') || '';
+          if (!confirm('¿Confirmas rechazar este comprobante?')) return;
+
+          try {
+            const resp = await fetch('/api/admin/reject-proof', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ proofId, reason }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+              alert(data?.error || 'Error rechazando comprobante');
+              return;
+            }
+            // Reload data
+            loadPendingActions(currentMode);
+            openProofHistory(transactionNumber); // Refresh modal
+          } catch (e) {
+            console.error(e);
+            alert('Error rechazando comprobante');
+          }
+        });
+
+        card.appendChild(img);
+        card.appendChild(badge);
+        if (isPending) card.appendChild(rejectBtn);
+        grid.appendChild(card);
+      });
+
+      // Rejected proofs grid
+      if (rejected.length > 0) {
+        const rejectedSorted = [...rejected].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+        rejectedSorted.forEach((p) => {
+          const card = document.createElement('a');
+          card.href = p.url;
+          card.target = '_blank';
+          card.rel = 'noopener noreferrer';
+          card.className = 'relative block bg-white/90 border border-slate-200 rounded-xl overflow-hidden hover:bg-white transition opacity-60';
+
+          const img = document.createElement('img');
+          img.src = p.url;
+          img.alt = 'Comprobante rechazado';
+          img.className = 'w-full h-28 object-cover';
+
+          const badge = document.createElement('div');
+          badge.className = 'absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center bg-white/90 border border-slate-200 backdrop-blur-sm shadow-lg';
+          badge.innerHTML = '<span class="text-2xl leading-none text-rose-700 font-black">✕</span>';
+
+          card.appendChild(img);
+          card.appendChild(badge);
+          rejGrid.appendChild(card);
+        });
+        rejEmpty.classList.add('hidden');
+      } else {
+        rejEmpty.classList.remove('hidden');
+      }
+    }
+
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeProofHistory() {
+    const modal = document.getElementById('proofHistoryModal');
+    if (modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = 'auto';
+    }
+  }
+
+  // Admin Abono Modal Context
+  let adminAbonoCtx = { tx: '', suggestedAmount: 0, proofId: 0 };
+
+  function setAdminAbonoStatus(msg) {
+    const el = document.getElementById('adminAbonoStatus');
+    if (el) el.textContent = msg || '';
+  }
+
+  function closeAdminAbono() {
+    const modal = document.getElementById('adminAbonoModal');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    adminAbonoCtx = { tx: '', suggestedAmount: 0, proofId: 0 };
+    setAdminAbonoStatus('');
+  }
+
+  function openAdminAbono(txNum, item) {
+    const modal = document.getElementById('adminAbonoModal');
+    if (!modal) return;
+
+    adminAbonoCtx.tx = String(txNum || '').trim();
+    adminAbonoCtx.suggestedAmount = 0;
+    adminAbonoCtx.proofId = 0;
+
+    const title = document.getElementById('adminAbonoTitle');
+    const subtitle = document.getElementById('adminAbonoSubtitle');
+    const img = document.getElementById('adminAbonoProofImg');
+    const link = document.getElementById('adminAbonoProofLink');
+    const empty = document.getElementById('adminAbonoProofEmpty');
+    const meta = document.getElementById('adminAbonoProofMeta');
+    const amtEl = document.getElementById('adminAbonoProofAmount');
+    const input = document.getElementById('adminAbonoAmountInput');
+
+    const tx = adminAbonoCtx.tx;
+    if (title) title.textContent = tx ? `Transacción #${tx}` : '';
+
+    // Pull proof (prefer pending proof)
+    const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
+    const pendingProofs = (Array.isArray(proofs) ? proofs : [])
+      .filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected')
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const proof = pendingProofs.length ? pendingProofs[0] : ((Array.isArray(proofs) && proofs.length) ? proofs[0] : null);
+    adminAbonoCtx.proofId = proof?.id != null ? Number(proof.id) : 0;
+
+    const totalPrice = Number(item?.totalPrice ?? 0) || 0;
+    const credited = Number(item?.creditedTotal ?? 0) || 0;
+    const saldo = Number(item?.saldoPendiente ?? 0) || 0;
+    const userName = item?.usuarioNombre ? String(item.usuarioNombre) : '';
+    const eventName = item?.eventName ? String(item.eventName) : '';
+    if (subtitle) {
+      const who = userName ? `${userName}${eventName ? ` • ${eventName}` : ''}` : (eventName || '');
+      subtitle.textContent = `${who}${who ? ' • ' : ''}Total: $${totalPrice.toLocaleString()} • Registrado: $${credited.toLocaleString()} • Saldo: $${saldo.toLocaleString()}`;
+    }
+
+    // Proof image + meta
+    const proofUrl = proof && proof.url ? String(proof.url) : '';
+    if (proofUrl && img && link && empty) {
+      img.src = proofUrl;
+      link.href = proofUrl;
+      link.classList.remove('hidden');
+      img.classList.remove('hidden');
+      empty.classList.add('hidden');
+    } else {
+      if (img) img.classList.add('hidden');
+      if (link) link.classList.add('hidden');
+      if (empty) empty.classList.remove('hidden');
+    }
+
+    const kind = proof ? String(proof.kind || '').toUpperCase() : '';
+    const createdAt = proof ? new Date(proof.createdAt).toLocaleString('es-CO') : '';
+    const amt = proof && proof.amount != null ? Number(proof.amount) : null;
+
+    if (meta) meta.textContent = `${kind || 'COMPROBANTE'}${createdAt ? ` • ${createdAt}` : ''}`;
+    if (amtEl) amtEl.textContent = amt != null && Number.isFinite(amt) && amt > 0 ? `$${amt.toLocaleString()}` : '';
+
+    // Suggested amount: for ABONO proof, use amount; else leave empty.
+    if (kind === 'ABONO' && amt != null && Number.isFinite(amt) && amt > 0) {
+      adminAbonoCtx.suggestedAmount = Math.trunc(amt);
+    }
+
+    if (input) {
+      input.value = adminAbonoCtx.suggestedAmount ? ('$ ' + adminAbonoCtx.suggestedAmount.toLocaleString('es-CO')) : '';
+    }
+
+    setAdminAbonoStatus('');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+      try { document.getElementById('adminAbonoAmountInput')?.focus(); } catch {}
+    }, 0);
+  }
+
+  // Admin Pago Modal Context
+  let adminPagoCtx = { tx: '', numbers: [], proofId: 0 };
+
+  function setAdminPagoStatus(msg) {
+    const el = document.getElementById('adminPagoStatus');
+    if (el) el.textContent = msg || '';
+  }
+
+  function closeAdminPago() {
+    const modal = document.getElementById('adminPagoModal');
+    if (modal) modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    adminPagoCtx = { tx: '', numbers: [], proofId: 0 };
+    setAdminPagoStatus('');
+  }
+
+  function openAdminPago(txNum, item) {
+    const modal = document.getElementById('adminPagoModal');
+    if (!modal) return;
+
+    adminPagoCtx.tx = String(txNum || '').trim();
+    adminPagoCtx.numbers = item?.numbers || [];
+    adminPagoCtx.proofId = 0;
+
+    const title = document.getElementById('adminPagoTitle');
+    const subtitle = document.getElementById('adminPagoSubtitle');
+    const img = document.getElementById('adminPagoProofImg');
+    const link = document.getElementById('adminPagoProofLink');
+    const empty = document.getElementById('adminPagoProofEmpty');
+    const meta = document.getElementById('adminPagoProofMeta');
+    const amtEl = document.getElementById('adminPagoProofAmount');
+
+    const tx = adminPagoCtx.tx;
+    if (title) title.textContent = tx ? `Transacción #${tx}` : '';
+
+    const totalPrice = Number(item?.totalPrice ?? 0) || 0;
+    const credited = Number(item?.creditedTotal ?? 0) || 0;
+    const saldo = Number(item?.saldoPendiente ?? 0) || 0;
+    const userName = item?.usuarioNombre ? String(item.usuarioNombre) : '';
+    const eventName = item?.eventName ? String(item.eventName) : '';
+    if (subtitle) {
+      const who = userName ? `${userName}${eventName ? ` • ${eventName}` : ''}` : (eventName || '');
+      subtitle.textContent = `${who}${who ? ' • ' : ''}Total: $${totalPrice.toLocaleString()} • Registrado: $${credited.toLocaleString()} • Saldo: $${saldo.toLocaleString()}`;
+    }
+
+    // Load proof (prefer pending proof)
+    const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
+    const pendingProofs = (Array.isArray(proofs) ? proofs : [])
+      .filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected')
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const proof = pendingProofs.length ? pendingProofs[0] : ((Array.isArray(proofs) && proofs.length) ? proofs[0] : null);
+    adminPagoCtx.proofId = proof?.id != null ? Number(proof.id) : 0;
+
+    // Proof image + meta
+    const proofUrl = proof && proof.url ? String(proof.url) : '';
+    if (proofUrl && img && link && empty) {
+      img.src = proofUrl;
+      link.href = proofUrl;
+      link.classList.remove('hidden');
+      img.classList.remove('hidden');
+      empty.classList.add('hidden');
+    } else {
+      if (img) img.classList.add('hidden');
+      if (link) link.classList.add('hidden');
+      if (empty) empty.classList.remove('hidden');
+    }
+
+    const kind = proof ? String(proof.kind || '').toUpperCase() : '';
+    const createdAt = proof ? new Date(proof.createdAt).toLocaleString('es-CO') : '';
+    const amt = proof && proof.amount != null ? Number(proof.amount) : null;
+
+    if (meta) meta.textContent = `${kind || 'COMPROBANTE'}${createdAt ? ` • ${createdAt}` : ''}`;
+    if (amtEl) amtEl.textContent = amt != null && Number.isFinite(amt) && amt > 0 ? `$${amt.toLocaleString()}` : '';
+
+    setAdminPagoStatus('');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  // Format currency helper
+  function formatCurrency(val) {
+    if (val === null || val === undefined || isNaN(val)) return '-';
+    return Number(val).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
+  }
+
+  // Include existing renderTransactionCard function (enhanced with lupita)
   function renderTransactionCard(tx) {
     const urgency = tx?.urgency || {};
     const proofAnalysis = tx?.proofAnalysis || {};
@@ -510,6 +1107,61 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
       return `${hours}h ${remainingMinutes}m`;
     };
     
+    // Generate proof button HTML (lupita)
+    const getProofButtonHtml = (txNum) => {
+      const proofs = tx?.proofs || [];
+      const pendingCount = proofs.filter((p: any) => 
+        String(p?.status || 'pending').toLowerCase() === 'pending'
+      ).length;
+      
+      if (pendingCount === 0) {
+        return `
+          <button type="button" class="proof-history-btn inline-flex items-center justify-center px-3 h-9 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition" data-tx="${txNum}" title="Comprobantes al día">
+            <span class="text-emerald-700">🔍</span>
+            <span class="ml-2 text-xs text-emerald-700 font-bold">✓</span>
+          </button>
+        `;
+      }
+      return `
+        <button type="button" class="proof-history-btn inline-flex items-center justify-center px-3 h-9 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 transition" data-tx="${txNum}" title="Comprobantes pendientes: ${pendingCount}">
+          <span class="text-rose-700">🔍</span>
+          <span class="ml-2 text-xs text-rose-700/90 font-bold">${pendingCount}</span>
+        </button>
+      `;
+    };
+    
+    // Generate countdown HTML
+    const getCountdownHtml = () => {
+      if (!hasActiveReservation) return '';
+      
+      const reservedNumbers = tx?.numbers?.filter((n: any) => 
+        String(n?.estado || '').toLowerCase() === 'reservado' && n?.reservedAt
+      ) || [];
+      
+      if (reservedNumbers.length === 0) return '';
+      
+      // Find earliest expiry
+      const now = Date.now();
+      const RESERVATION_TTL_MS = 5 * 60 * 1000; // 5 minutes
+      let earliestExpiry = null;
+      
+      reservedNumbers.forEach((n: any) => {
+        if (n.reservedAt) {
+          const expiryTime = Date.parse(String(n.reservedAt)) + RESERVATION_TTL_MS;
+          if (!earliestExpiry || expiryTime < earliestExpiry) {
+            earliestExpiry = expiryTime;
+          }
+        }
+      });
+      
+      if (!earliestExpiry) return '';
+      
+      const expiresAt = new Date(earliestExpiry).toISOString();
+      return `<span class="countdown-timer text-xs font-mono text-red-600" data-expires-at="${expiresAt}" data-prefix="⏰ ">Cargando...</span>`;
+    };
+    
+    const countdownHtml = getCountdownHtml();
+    
     return `
       <div class="${urgencyStyles.bg} border ${urgencyStyles.border} rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
         <div class="flex items-center justify-between">
@@ -518,12 +1170,8 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
             <p class="text-sm text-gray-500">${tx.usuarioNombre}</p>
           </div>
           <div class="flex items-center space-x-2">
-            <!-- Lupita indicator -->
-            ${(proofStats.pending > 0 || hasActiveReservation || promo.active) ? `
-              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                🔍 Lupita
-              </span>
-            ` : ''}
+            <!-- Proof button (lupita) -->
+            ${getProofButtonHtml(tx.transactionNumber)}
             
             <!-- Urgency badges -->
             ${urgency.urgencyScore >= 1000 ? '<span class="badge badge-danger">🔴 CRÍTICO</span>' : ''}
@@ -531,6 +1179,16 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
             ${urgency.urgencyScore >= 100 && urgency.urgencyScore < 500 ? '<span class="badge badge-info">🟡 Atención</span>' : ''}
           </div>
         </div>
+        
+        <!-- Countdown timer -->
+        ${countdownHtml ? `
+          <div class="mt-2 p-2 bg-red-50 rounded text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-red-600">⏰ Reserva expira en:</span>
+              ${countdownHtml}
+            </div>
+          </div>
+        ` : ''}
         
         <!-- Proof information -->
         <div class="mt-3 p-2 bg-gray-50 rounded text-xs">
@@ -541,18 +1199,6 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
             </span>
           </div>
         </div>
-        
-        <!-- Active reservation timer -->
-        ${hasActiveReservation ? `
-          <div class="mt-2 p-2 bg-blue-50 rounded text-xs">
-            <div class="flex items-center justify-between">
-              <span class="text-blue-600">⏰ Reserva activa:</span>
-              <span class="font-medium text-blue-800">
-                ${formatTimeRemaining(urgency.timeToExpiry) || 'Expirando...'}
-              </span>
-            </div>
-          </div>
-        ` : ''}
         
         <!-- Promo grace period -->
         ${promo.active ? `
@@ -588,13 +1234,10 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
           ${proofAnalysis.suggestedAction === 'validate_abono' ? `
             <button class="btn-primary text-sm">✅ Validar Abono</button>
           ` : ''}
-          <button class="btn-secondary text-sm" onclick="viewTransaction('${tx.transactionNumber}')">
-            👁️ Ver Comprobantes
+          <button class="btn-secondary text-sm admin-pay" data-tx="${tx.transactionNumber}">
+            � Pagar
           </button>
-          <button class="btn-secondary text-sm" onclick="validateTransaction('${tx.transactionNumber}')">
-            💳 Pagar
-          </button>
-          <button class="btn-secondary text-sm">
+          <button class="btn-secondary text-sm admin-abono" data-tx="${tx.transactionNumber}">
             💰 Abonar
           </button>
         </div>
