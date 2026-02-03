@@ -565,6 +565,19 @@ export const GET: APIRoute = async ({ request }) => {
 			})
 			.filter(Boolean)
 			.filter((it: any) => {
+				// Siempre incluir transacciones con comprobantes, reservas activas o promociones
+				const hasPendingProofs = (Number(it?.proofStats?.pending || 0) || 0) > 0;
+				const hasActiveReservation = it?.numbers?.some((n: any) => 
+					String(n?.estado || '').toLowerCase() === 'reservado' && n?.reservedAt
+				);
+				const hasActivePromo = it?.promo?.active;
+				
+				// Para cualquier modo, incluir si tiene elementos importantes
+				if (hasPendingProofs || hasActiveReservation || hasActivePromo) {
+					return true;
+				}
+				
+				// Filtros específicos por modo para transacciones sin elementos especiales
 				if (isPagosMode) {
 					// Modo pagos: transacciones completamente pagadas (saldo = 0) y sin promoción activa
 					const saldo = Number(it?.saldoPendiente || 0) || 0;
@@ -573,7 +586,8 @@ export const GET: APIRoute = async ({ request }) => {
 					return saldo === 0 && !hasPromo;
 				}
 				if (isPaymentMode) return (Number(it?.saldoPendiente || 0) || 0) > 0;
-				return (Number(it?.proofStats?.pending || 0) || 0) > 0;
+				// Modo admin: ya filtrado por hasPendingProofs arriba
+				return false;
 			})
 			.sort((a: any, b: any) => {
 				// Nueva lógica: ordenar por urgencia primero (solo en modo admin)

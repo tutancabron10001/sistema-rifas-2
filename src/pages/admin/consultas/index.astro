@@ -474,10 +474,12 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     // Implement validation logic
   }
 
-  // Include existing renderTransactionCard function (simplified)
+  // Include existing renderTransactionCard function (enhanced)
   function renderTransactionCard(tx) {
     const urgency = tx?.urgency || {};
     const proofAnalysis = tx?.proofAnalysis || {};
+    const proofStats = tx?.proofStats || {};
+    const promo = tx?.promo || {};
     
     // Determine urgency styles
     const getUrgencyStyles = (urgency) => {
@@ -493,6 +495,21 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     
     const urgencyStyles = getUrgencyStyles(urgency);
     
+    // Check for active reservations
+    const hasActiveReservation = tx?.numbers?.some((n: any) => 
+      String(n?.estado || '').toLowerCase() === 'reservado' && n?.reservedAt
+    );
+    
+    // Format time remaining
+    const formatTimeRemaining = (timeToExpiry) => {
+      if (!timeToExpiry) return '';
+      const minutes = Math.floor(timeToExpiry / (1000 * 60));
+      if (minutes < 60) return `${minutes}m`;
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return `${hours}h ${remainingMinutes}m`;
+    };
+    
     return `
       <div class="${urgencyStyles.bg} border ${urgencyStyles.border} rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
         <div class="flex items-center justify-between">
@@ -501,11 +518,54 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
             <p class="text-sm text-gray-500">${tx.usuarioNombre}</p>
           </div>
           <div class="flex items-center space-x-2">
+            <!-- Lupita indicator -->
+            ${(proofStats.pending > 0 || hasActiveReservation || promo.active) ? `
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                🔍 Lupita
+              </span>
+            ` : ''}
+            
+            <!-- Urgency badges -->
             ${urgency.urgencyScore >= 1000 ? '<span class="badge badge-danger">🔴 CRÍTICO</span>' : ''}
             ${urgency.urgencyScore >= 500 && urgency.urgencyScore < 1000 ? '<span class="badge badge-warning">🟠 URGENTE</span>' : ''}
             ${urgency.urgencyScore >= 100 && urgency.urgencyScore < 500 ? '<span class="badge badge-info">🟡 Atención</span>' : ''}
           </div>
         </div>
+        
+        <!-- Proof information -->
+        <div class="mt-3 p-2 bg-gray-50 rounded text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600">📎 Comprobantes:</span>
+            <span class="font-medium">
+              ${proofStats.pending || 0} pendientes / ${proofStats.validated || 0} validados
+            </span>
+          </div>
+        </div>
+        
+        <!-- Active reservation timer -->
+        ${hasActiveReservation ? `
+          <div class="mt-2 p-2 bg-blue-50 rounded text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-blue-600">⏰ Reserva activa:</span>
+              <span class="font-medium text-blue-800">
+                ${formatTimeRemaining(urgency.timeToExpiry) || 'Expirando...'}
+              </span>
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Promo grace period -->
+        ${promo.active ? `
+          <div class="mt-2 p-2 bg-green-50 rounded text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-green-600">🎁 Período gracia promo:</span>
+              <span class="font-medium text-green-800">
+                ${formatTimeRemaining(urgency.timeToExpiry) || 'Expirando...'}
+              </span>
+            </div>
+          </div>
+        ` : ''}
+        
         <div class="mt-4">
           <div class="flex justify-between text-sm">
             <span class="text-gray-500">Total:</span>
@@ -515,16 +575,28 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
             <span class="text-gray-500">Pagado:</span>
             <span class="font-medium">$${Number(tx.creditedTotal || 0).toLocaleString()}</span>
           </div>
+          <div class="flex justify-between text-sm mt-1">
+            <span class="text-gray-500">Pendiente:</span>
+            <span class="font-medium text-orange-600">$${Number(tx.saldoPendiente || 0).toLocaleString()}</span>
+          </div>
         </div>
-        <div class="mt-4 flex space-x-2">
+        
+        <div class="mt-4 flex flex-wrap gap-2">
           ${proofAnalysis.suggestedAction === 'validate_payment' ? `
             <button class="btn-primary text-sm">✅ Validar Pago</button>
           ` : ''}
           ${proofAnalysis.suggestedAction === 'validate_abono' ? `
             <button class="btn-primary text-sm">✅ Validar Abono</button>
           ` : ''}
-          <button class="btn-secondary text-sm">💳 Pagar</button>
-          <button class="btn-secondary text-sm">💰 Abonar</button>
+          <button class="btn-secondary text-sm" onclick="viewTransaction('${tx.transactionNumber}')">
+            👁️ Ver Comprobantes
+          </button>
+          <button class="btn-secondary text-sm" onclick="validateTransaction('${tx.transactionNumber}')">
+            💳 Pagar
+          </button>
+          <button class="btn-secondary text-sm">
+            💰 Abonar
+          </button>
         </div>
       </div>
     `;
