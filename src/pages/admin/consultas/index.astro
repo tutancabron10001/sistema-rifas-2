@@ -510,7 +510,15 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
             creditedTotal: Number(it?.creditedTotal ?? 0) || 0,
             saldoPendiente: Number(it?.saldoPendiente ?? 0) || 0,
           };
+          console.log(`📝 Cached data for transaction ${tx}:`, { 
+            proofCount: proofs.length, 
+            hasActiveReservation: it?.numbers?.some((n: any) => String(n?.estado || '').toLowerCase() === 'reservado'),
+            numbersCount: it?.numbers?.length 
+          });
         });
+        
+        console.log('📊 Final proofsByTx cache:', proofsByTx);
+        console.log('📊 Final txAggByNumber cache:', txAggByNumber);
         
         renderPendingActions(pendingData);
         renderTransactionsTable(pendingData);
@@ -756,6 +764,9 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
 
   // Proof history modal functions
   function openProofHistory(transactionNumber) {
+    console.log('🔍 Opening proof history for transaction:', transactionNumber);
+    console.log('📊 Available proofsByTx:', proofsByTx);
+    
     const modal = document.getElementById('proofHistoryModal');
     const title = document.getElementById('proofHistoryTitle');
     const summary = document.getElementById('proofHistorySummary');
@@ -764,14 +775,20 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     const rejGrid = document.getElementById('proofHistoryRejectedGrid');
     const rejEmpty = document.getElementById('proofHistoryRejectedEmpty');
     
-    if (!modal || !grid || !empty || !rejGrid || !rejEmpty) return;
+    if (!modal || !grid || !empty || !rejGrid || !rejEmpty) {
+      console.error('❌ Modal elements not found');
+      return;
+    }
 
     const proofs = (proofsByTx && transactionNumber && proofsByTx[transactionNumber]) ? proofsByTx[transactionNumber] : [];
+    console.log('📎 Proofs found for transaction:', transactionNumber, proofs);
+    
     const rejected = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() === 'rejected');
     const considered = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected');
     const agg = (txAggByNumber && transactionNumber && txAggByNumber[transactionNumber]) ? txAggByNumber[transactionNumber] : null;
     
     const pendingCount = considered.filter((p) => String(p?.status || 'pending').toLowerCase() === 'pending').length;
+    console.log('📊 Proof analysis:', { total: proofs.length, rejected: rejected.length, considered: considered.length, pending: pendingCount });
     
     grid.innerHTML = '';
     rejGrid.innerHTML = '';
@@ -786,14 +803,18 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     }
 
     if (!Array.isArray(proofs) || proofs.length === 0) {
+      console.log('📭 No proofs to display');
       empty.classList.remove('hidden');
       rejEmpty.classList.remove('hidden');
     } else {
       empty.classList.add('hidden');
+      console.log('🖼️ Rendering proofs grid...');
 
       // Normal proofs grid
       const sorted = [...considered].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-      sorted.forEach((p) => {
+      sorted.forEach((p, index) => {
+        console.log(`📎 Rendering proof ${index + 1}:`, { id: p.id, status: p.status, url: p.url });
+        
         const card = document.createElement('a');
         card.href = p.url;
         card.target = '_blank';
@@ -806,6 +827,12 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
         img.src = p.url;
         img.alt = 'Comprobante';
         img.className = 'w-full h-28 object-cover';
+        
+        // Add error handling for image loading
+        img.onerror = function() {
+          console.error('❌ Failed to load image:', p.url);
+          this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNmY3NTc1IiBzdHJva2Utd2lkdGg9IjIiLz4KPHBhdGggZD0iTTEyIDR2MTZhNiA2IDYgMCAwIDEyIDEyIDEyIDEyIDYgMCAwIDEyLTYgMTJ6Ii8+CjxwYXRoIGQ9Ik04IDEyaDYgNnYtMTJoMTJ2MTJ6Ii8+Cjwvc3ZnPg==';
+        };
 
         const badge = document.createElement('div');
         badge.className = 'absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center bg-white/90 border border-slate-200 backdrop-blur-sm shadow-lg';
@@ -883,6 +910,7 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
 
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    console.log('✅ Proof history modal opened successfully');
   }
 
   function closeProofHistory() {
@@ -1092,10 +1120,23 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
     
     const urgencyStyles = getUrgencyStyles(urgency);
     
-    // Check for active reservations
-    const hasActiveReservation = tx?.numbers?.some((n: any) => 
-      String(n?.estado || '').toLowerCase() === 'reservado' && n?.reservedAt
-    );
+    // Check for active reservations (strict validation)
+    const hasActiveReservation = tx?.numbers?.some((n: any) => {
+      const isReserved = String(n?.estado || '').toLowerCase() === 'reservado';
+      const hasReservedAt = n?.reservedAt;
+      
+      if (!isReserved || !hasReservedAt) return false;
+      
+      const now = Date.now();
+      const RESERVATION_TTL_MS = 5 * 60 * 1000; // 5 minutes
+      const reservedTime = Date.parse(String(hasReservedAt));
+      const notExpired = (reservedTime + RESERVATION_TTL_MS) > now;
+      
+      return isReserved && hasReservedAt && notExpired;
+    });
+    
+    // Check for active promotion (strict validation)
+    const hasActivePromo = tx?.promo?.active && tx?.promo?.expiresAt && Date.parse(String(tx.promo.expiresAt)) > Date.now();
     
     // Format time remaining
     const formatTimeRemaining = (timeToExpiry) => {
@@ -1130,7 +1171,7 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
       `;
     };
     
-    // Generate countdown HTML
+    // Generate countdown HTML (strict validation)
     const getCountdownHtml = () => {
       if (!hasActiveReservation) return '';
       
@@ -1190,13 +1231,25 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
           </div>
         ` : ''}
         
-        <!-- Proof information -->
+        <!-- Boletas information -->
         <div class="mt-3 p-2 bg-gray-50 rounded text-xs">
           <div class="flex items-center justify-between">
-            <span class="text-gray-600">📎 Comprobantes:</span>
-            <span class="font-medium">
-              ${proofStats.pending || 0} pendientes / ${proofStats.validated || 0} validados
-            </span>
+            <span class="text-gray-600">🎫 Boletas:</span>
+            <span class="font-medium">${tx?.numbers?.length || 0} totales</span>
+          </div>
+          ${hasActiveReservation ? `
+            <div class="flex items-center justify-between mt-1">
+              <span class="text-gray-600">⏰ Reservadas:</span>
+              <span class="font-medium text-amber-600">${tx?.numbers?.filter((n: any) => String(n?.estado || '').toLowerCase() === 'reservado').length}</span>
+            </div>
+          ` : ''}
+          <div class="flex items-center justify-between mt-1">
+            <span class="text-gray-600">✅ Pagadas:</span>
+            <span class="font-medium text-green-600">${tx?.numbers?.filter((n: any) => String(n?.estado || '').toLowerCase() === 'pago').length}</span>
+          </div>
+          <div class="flex items-center justify-between mt-1">
+            <span class="text-gray-600">💰 Disponibles:</span>
+            <span class="font-medium text-blue-600">${tx?.numbers?.filter((n: any) => String(n?.estado || '').toLowerCase() === 'disponible').length}</span>
           </div>
         </div>
         
