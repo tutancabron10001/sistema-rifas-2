@@ -19,10 +19,14 @@
   "dependencies": {
     "@astrojs/vercel": "^7.7.0",
     "@libsql/client": "^0.17.0",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/typography": "^0.5.19",
     "astro": "^4.0.0",
     "cloudinary": "^2.9.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.36.0",
+    "form-data": "^4.0.5",
+    "node-fetch": "^3.3.2",
     "nodemailer": "^6.9.0",
     "resend": "^6.8.0"
   },

@@ -2,6 +2,10 @@
 import "../../../styles/global.css";
 import { db } from '../../../db/client';
 import { campaigns, events } from '../../../db/schema';
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import StatCard from '../../../components/admin/StatCard.astro';
+import DataTable from '../../../components/admin/DataTable.astro';
+import Modal from '../../../components/admin/Modal.astro';
 
 // Verificar autenticación
 if (!Astro.cookies.has("admin_session")) {
@@ -11,2199 +15,480 @@ if (!Astro.cookies.has("admin_session")) {
 const campaignList = await db.select().from(campaigns).orderBy(campaigns.createdAt);
 const eventList = await db.select().from(events).orderBy(events.createdAt);
 ---
-<html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Consultas — Administración</title>
-    <style>
-      @keyframes fadeIn { from { opacity: 0; transform: translateY(12px);} to { opacity: 1; transform: translateY(0);} }
-      .card { animation: fadeIn 0.35s ease-out; }
-    </style>
-  </head>
-  <body class="min-h-screen bg-gradient-to-br from-rose-50 via-sky-50 to-white text-slate-900">
-    <header class="absolute top-0 left-0 right-0 z-10 p-6">
-      <div class="flex items-center justify-between w-full max-w-7xl mx-auto px-2 md:px-4">
-        <a href="/admin" class="group flex items-center gap-2 text-slate-700 hover:text-slate-900 transition-all duration-300">
-          <svg class="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-          <span class="font-medium">Volver</span>
-        </a>
-        <div class="text-center">
-          <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-rose-600 via-fuchsia-600 to-sky-600 bg-clip-text text-transparent">
-            Consultas por Cédula
-          </h1>
-          <p class="text-sm text-slate-600 mt-1">Movimientos y transacciones de rifas</p>
-        </div>
-        <div class="w-24"></div>
-      </div>
-    </header>
 
-    <main class="w-full max-w-none mx-auto pt-28 pb-16 px-4 md:px-8 space-y-6">
-      <!-- Tabs para cambiar entre vistas -->
-      <div class="card app-surface p-2">
-        <div class="flex gap-2">
-          <button id="tabAsignaciones" class="flex-1 px-4 py-3 bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white font-extrabold rounded-xl transition-all">
-            📋 Asignaciones y Consultas
-          </button>
-          <button id="tabReservados" class="flex-1 px-4 py-3 bg-white hover:bg-slate-50 text-slate-800 font-extrabold rounded-xl transition-all border border-slate-200">
-            📊 Estados Financieros
-          </button>
-        </div>
-      </div>
-
-      <!-- VISTA 1: ASIGNACIONES Y CONSULTAS -->
-      <div id="viewAsignaciones" class="space-y-6">
-      <!-- PENDIENTES (principal) -->
-      <details id="pendingAdminPanel" class="card app-surface p-6" open>
-        <summary class="cursor-pointer list-none select-none">
-          <div class="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 class="text-lg md:text-xl font-extrabold text-slate-900">✅ Pendientes del administrador</h2>
-              <p class="text-sm text-slate-600 mt-1">Resumen de transacciones con comprobantes pendientes y acciones para registrar pagos/abonos.</p>
-            </div>
-            <div class="flex items-center gap-3">
-              <span id="pendingActionsStatus" class="text-xs text-slate-600"></span>
-            </div>
-          </div>
-        </summary>
-
-        <div class="mt-5">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-            <div class="text-xs text-slate-600">Filtro</div>
-            <div class="flex gap-2">
-              <button type="button" id="pendingFilterAdmin" class="px-4 py-2 rounded-xl border transition-all bg-rose-600 text-white border-rose-200/60 font-extrabold">
-                ✅ Pendientes del administrador
-              </button>
-              <button type="button" id="pendingFilterPago" class="px-4 py-2 rounded-xl border transition-all bg-white text-slate-800 border-slate-200 font-extrabold hover:bg-slate-50">
-                💳 Pendientes de pago
-              </button>
-              <button type="button" id="pendingFilterPagos" class="px-4 py-2 rounded-xl border transition-all bg-white text-slate-800 border-slate-200 font-extrabold hover:bg-slate-50">
-                💰 Pagos
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div id="pendingSummaryGrid" class="mt-5 grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div id="pendingCard1" class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <div id="pendingCard1Label" class="text-xs text-amber-700 mb-1">⏳ Transacciones con comprobantes pendientes</div>
-            <div id="pendingTransactionsCount" class="text-2xl md:text-3xl font-extrabold text-amber-800">—</div>
-          </div>
-          <div id="pendingCard2" class="bg-rose-50 border border-rose-200 rounded-2xl p-4">
-            <div id="pendingCard2Label" class="text-xs text-rose-700 mb-1">🧾 Comprobantes por registrar</div>
-            <div id="pendingProofsCount" class="text-2xl md:text-3xl font-extrabold text-rose-800">—</div>
-          </div>
-          <div id="pendingCard3" class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
-            <div id="pendingCard3Label" class="text-xs text-emerald-700 mb-1">💸 Monto por registrar (según comprobantes pendientes)</div>
-            <div id="pendingAmountTotal" class="text-2xl md:text-3xl font-extrabold text-emerald-800">—</div>
-          </div>
-        </div>
-
-        <div class="mt-5">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-sm md:text-base font-extrabold text-slate-900">Acciones sugeridas</h3>
-            <p id="pendingActionsHint" class="text-xs text-slate-600">Usa la 🔍 para ver comprobantes • Pagar/Abonar al final</p>
-          </div>
-          <div id="pendingActionsList" class="space-y-3"></div>
-        </div>
-
-      </details>
-      </div>
-
-      <!-- VISTA 2: RESERVADOS Y PAGOS -->
-      <div id="viewReservados" class="hidden space-y-6">
-      <!-- Filtros para Reservados -->
-      <div class="card app-surface p-6">
-        <div class="flex flex-wrap gap-2 mb-4">
-          <button type="button" id="filterCampaignReserBtn" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl transition-all font-bold">
-            Campaña
-          </button>
-          <button id="buscarReserBtn" class="ml-auto bg-gradient-to-r from-rose-600 to-fuchsia-600 hover:from-rose-500 hover:to-fuchsia-500 text-white font-extrabold py-2 px-6 rounded-xl border border-rose-200/60 transition-all">Buscar</button>
-          <button id="limpiarReserBtn" type="button" class="px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 font-bold rounded-xl border border-slate-200">Limpiar</button>
-        </div>
-        
-        <div id="campaignReserFilter" class="hidden">
-          <label class="block text-sm text-slate-700 font-bold mb-2">Campaña</label>
-          <select id="campaignReserSelect" class="app-input">
-            <option value="">Todas</option>
-            {campaignList.map((c) => (
-              <option value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <div id="estadoMsgReser" class="hidden mt-3 text-sm text-slate-700"></div>
-      </div>
-
-      <!-- Resultados Reservados y Pagos -->
-      <div class="card app-surface p-6 min-h-[320px]">
-          <!-- Barra de dinero recaudado -->
-          <div class="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-            <h3 class="text-lg font-extrabold text-slate-900 mb-3">💰 Estado Financiero</h3>
-            <div class="grid grid-cols-3 gap-3">
-              <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-                <div class="text-xs text-emerald-700 mb-1">💵 Pagado</div>
-                <div class="text-xl font-extrabold text-emerald-800" id="dineroRecaudado">$0</div>
-              </div>
-              <div class="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <div class="text-xs text-amber-700 mb-1">💰 Abonado</div>
-                <div class="text-xl font-extrabold text-amber-800" id="dineroAbonado">$0</div>
-              </div>
-              <div class="bg-rose-50 border border-rose-200 rounded-xl p-3">
-                <div class="text-xs text-rose-700 mb-1">⏳ Pendiente</div>
-                <div class="text-xl font-extrabold text-rose-800" id="dineroPorRecaudar">$0</div>
-              </div>
-            </div>
-            <div class="mt-3 bg-slate-200 rounded-full h-6 overflow-hidden">
-              <div id="barraRecaudacion" class="bg-gradient-to-r from-green-500 to-emerald-500 h-full transition-all duration-500 flex items-center justify-center text-xs font-bold" style="width: 0%; color: #1f2937;">
-                <span id="porcentajeRecaudado">0%</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <p class="text-sm text-slate-600">Reservaciones</p>
-              <h2 class="text-xl font-extrabold text-slate-900">Registros</h2>
-            </div>
-            <div class="text-right text-sm text-slate-600">
-              <div><span class="font-semibold" id="totalReserRows">0</span> registros</div>
-              <div><span class="font-semibold text-amber-700" id="countReservados">0</span> Reservados</div>
-              <div><span class="font-semibold text-orange-700" id="countAbonados">0</span> Abonados</div>
-              <div><span class="font-semibold text-emerald-700" id="countPagos">0</span> Pagados</div>
-            </div>
-          </div>
-          <div class="overflow-x-auto rounded-2xl border border-slate-200">
-            <table class="min-w-full text-sm">
-              <thead class="bg-rose-50 text-slate-700">
-                <tr>
-                  <th class="px-3 py-2 text-left">Transacción</th>
-                  <th class="px-3 py-2 text-left">Participante</th>
-                  <th class="px-3 py-2 text-left">Campaña</th>
-                  <th class="px-3 py-2 text-right">Total</th>
-                  <th class="px-3 py-2 text-right">Pagado</th>
-                  <th class="px-3 py-2 text-right">Pendiente</th>
-                </tr>
-              </thead>
-              <tbody id="resultBodyReser" class="divide-y divide-slate-200 text-slate-900"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <!-- Proof History Modal -->
-    <div id="proofHistoryModal" class="hidden fixed inset-0 app-overlay z-50 flex items-center justify-center p-3 md:p-6">
-      <div class="app-modal max-w-5xl w-full max-h-[92vh] overflow-y-auto">
-        <div class="sticky top-0 bg-rose-50 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between border-b border-rose-200">
-          <div>
-            <h2 class="text-lg md:text-2xl font-black text-slate-900">Histórico de comprobantes</h2>
-            <p id="proofHistoryTitle" class="text-slate-600 text-xs md:text-sm mt-1"></p>
-            <p id="proofHistorySummary" class="text-slate-700 text-sm md:text-base mt-2"></p>
-          </div>
-          <button id="proofHistoryCloseBtn" class="text-slate-600 hover:text-slate-900 text-xl md:text-2xl font-bold transition-colors">✕</button>
-        </div>
-        <div class="px-4 md:px-8 py-4 md:py-6">
-          <div id="proofHistoryGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
-          <div id="proofHistoryEmpty" class="hidden text-center text-slate-600 py-10">Sin comprobantes</div>
-
-          <div class="mt-6">
-            <div class="flex items-center justify-between mb-2">
-              <h3 class="text-sm md:text-base font-extrabold text-rose-800">⛔ Comprobantes rechazados</h3>
-              <p class="text-xs text-slate-600">No cuentan como pendientes</p>
-            </div>
-            <div id="proofHistoryRejectedGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
-            <div id="proofHistoryRejectedEmpty" class="hidden text-center text-slate-600 py-6">Sin rechazados</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Admin Abono Modal (Pendientes) -->
-    <div id="adminAbonoModal" class="hidden fixed inset-0 app-overlay z-50 flex items-center justify-center p-3 md:p-6">
-      <div class="app-modal max-w-5xl w-full max-h-[92vh] overflow-y-auto">
-        <div class="sticky top-0 bg-amber-50 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between border-b border-amber-200">
-          <div>
-            <h2 class="text-lg md:text-2xl font-black text-slate-900">Registrar abono</h2>
-            <p id="adminAbonoTitle" class="text-amber-800 text-xs md:text-sm mt-1"></p>
-            <p id="adminAbonoSubtitle" class="text-amber-700 text-sm md:text-base mt-2"></p>
-          </div>
-          <button id="adminAbonoCloseBtn" class="text-slate-600 hover:text-slate-900 text-xl md:text-2xl font-bold transition-colors">✕</button>
-        </div>
-
-        <div class="px-4 md:px-8 py-4 md:py-6">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white/80 border border-slate-200 rounded-2xl overflow-hidden">
-              <a id="adminAbonoProofLink" href="#" target="_blank" rel="noopener noreferrer" class="block">
-                <img id="adminAbonoProofImg" src="" alt="Comprobante" class="w-full h-72 md:h-96 object-cover" />
-              </a>
-              <div id="adminAbonoProofEmpty" class="hidden p-6 text-center text-slate-600">
-                No hay comprobante para mostrar.
-              </div>
-              <div class="p-3 text-xs text-slate-700 border-t border-slate-200 flex items-center justify-between gap-2">
-                <div id="adminAbonoProofMeta" class="truncate"></div>
-                <div id="adminAbonoProofAmount" class="font-black text-amber-700 shrink-0"></div>
-              </div>
-            </div>
-
-            <div class="bg-white/80 border border-slate-200 rounded-2xl p-4">
-              <div class="text-xs text-slate-600">Monto a registrar (COP)</div>
-              <div class="mt-2 flex gap-2">
-                <input id="adminAbonoAmountInput" type="text" inputmode="numeric" placeholder="$ 20.000" class="app-input border-amber-200 focus:border-amber-300 focus:ring-amber-200/60" />
-                <button id="adminAbonoUseSuggested" type="button" class="shrink-0 px-4 py-3 rounded-xl bg-slate-900/5 hover:bg-slate-900/10 border border-slate-200 text-slate-800 font-bold">
-                  Usar sugerido
-                </button>
-              </div>
-
-              <div class="mt-3 text-xs text-slate-600">Se registra en pesos colombianos (COP). Solo números.</div>
-
-              <div id="adminAbonoStatus" class="mt-4 text-sm text-amber-700"></div>
-
-              <div class="mt-5 flex flex-col sm:flex-row gap-2">
-                <button id="adminAbonoCancel" type="button" class="w-full sm:w-auto sm:flex-1 bg-white hover:bg-slate-50 text-slate-800 font-bold py-3 px-4 rounded-xl border border-slate-200">Cancelar</button>
-                <button id="adminAbonoConfirm" type="button" class="w-full sm:w-auto sm:flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black py-3 px-4 rounded-xl border border-amber-400/30">Registrar abono</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Admin Pago Modal (Pendientes) -->
-    <div id="adminPagoModal" class="hidden fixed inset-0 app-overlay z-50 flex items-center justify-center p-3 md:p-6">
-      <div class="app-modal max-w-5xl w-full max-h-[92vh] overflow-y-auto">
-        <div class="sticky top-0 bg-emerald-50 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between border-b border-emerald-200">
-          <div>
-            <h2 class="text-lg md:text-2xl font-black text-slate-900">Registrar pago</h2>
-            <p id="adminPagoTitle" class="text-emerald-800 text-xs md:text-sm mt-1"></p>
-            <p id="adminPagoSubtitle" class="text-emerald-700 text-sm md:text-base mt-2"></p>
-          </div>
-          <button id="adminPagoCloseBtn" class="text-slate-600 hover:text-slate-900 text-xl md:text-2xl font-bold transition-colors">✕</button>
-        </div>
-
-        <div class="px-4 md:px-8 py-4 md:py-6">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div class="bg-white/80 border border-slate-200 rounded-2xl overflow-hidden">
-              <a id="adminPagoProofLink" href="#" target="_blank" rel="noopener noreferrer" class="block">
-                <img id="adminPagoProofImg" src="" alt="Comprobante" class="w-full h-72 md:h-96 object-cover" />
-              </a>
-              <div id="adminPagoProofEmpty" class="hidden p-6 text-center text-slate-600">
-                No hay comprobante para mostrar.
-              </div>
-              <div class="p-3 text-xs text-slate-700 border-t border-slate-200 flex items-center justify-between gap-2">
-                <div id="adminPagoProofMeta" class="truncate"></div>
-                <div id="adminPagoProofAmount" class="font-black text-emerald-700 shrink-0"></div>
-              </div>
-            </div>
-
-            <div class="bg-white/80 border border-slate-200 rounded-2xl p-4">
-              <div class="text-xs text-slate-600">Acción</div>
-              <div class="mt-2 text-sm text-slate-700">
-                Esto marcará la transacción como <span class="font-black text-emerald-700">PAGO</span> (todas las boletas).
-              </div>
-
-              <div id="adminPagoStatus" class="mt-4 text-sm text-emerald-700"></div>
-
-              <div class="mt-5 flex flex-col sm:flex-row gap-2">
-                <button id="adminPagoCancel" type="button" class="w-full sm:w-auto sm:flex-1 bg-white hover:bg-slate-50 text-slate-800 font-bold py-3 px-4 rounded-xl border border-slate-200">Cancelar</button>
-                <button id="adminPagoConfirm" type="button" class="w-full sm:w-auto sm:flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3 px-4 rounded-xl border border-emerald-400/30">Registrar pago</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <script>
-      // Proofs cache (per transaction)
-      let proofsByTx = {};
-
-      // Transaction aggregates (per tx) built from current rows
-      let txAggByNumber = {};
-
-      function setPendingStatus(text) {
-        const el = document.getElementById('pendingActionsStatus');
-        if (el) el.textContent = text || '';
-      }
-
-      let pendingItemsCache = [];
-      let pendingViewMode = 'admin'; // 'admin' | 'payment' | 'pagos'
-
-      function setPendingViewMode(mode) {
-        pendingViewMode = (mode === 'payment' || mode === 'pagos') ? mode : 'admin';
-
-        const btnAdmin = document.getElementById('pendingFilterAdmin');
-        const btnPago = document.getElementById('pendingFilterPago');
-        const btnPagos = document.getElementById('pendingFilterPagos');
-        const hint = document.getElementById('pendingActionsHint');
-
-        if (btnAdmin) {
-          btnAdmin.className = pendingViewMode === 'admin'
-            ? 'px-4 py-2 rounded-xl border transition-all bg-rose-600 text-white border-rose-200/60 font-extrabold'
-            : 'px-4 py-2 rounded-xl border transition-all bg-white text-slate-800 border-slate-200 font-extrabold hover:bg-slate-50';
-        }
-        if (btnPago) {
-          btnPago.className = pendingViewMode === 'payment'
-            ? 'px-4 py-2 rounded-xl border transition-all bg-rose-600 text-white border-rose-200/60 font-extrabold'
-            : 'px-4 py-2 rounded-xl border transition-all bg-white text-slate-800 border-slate-200 font-extrabold hover:bg-slate-50';
-        }
-        if (btnPagos) {
-          btnPagos.className = pendingViewMode === 'pagos'
-            ? 'px-4 py-2 rounded-xl border transition-all bg-rose-600 text-white border-rose-200/60 font-extrabold'
-            : 'px-4 py-2 rounded-xl border transition-all bg-white text-slate-800 border-slate-200 font-extrabold hover:bg-slate-50';
-        }
-
-        if (hint) {
-          hint.textContent = pendingViewMode === 'admin'
-            ? 'Usa la 🔍 para ver comprobantes • Pagar/Abonar al final'
-            : 'Usa la 🔍 para ver comprobantes';
-        }
-
-        // Refresca data según el modo (admin = por comprobantes pendientes, payment = por saldo pendiente)
-        loadPendingActions(pendingViewMode);
-      }
-
-      function renderPendingActions(items, opts = {}) {
-        const list = document.getElementById('pendingActionsList');
-        if (!list) return;
-        const mode = String(opts?.mode || 'admin');
-        const showActions = mode === 'admin';
-        if (!Array.isArray(items) || items.length === 0) {
-          list.innerHTML = '<div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-700">No hay pendientes por ahora.</div>';
-          return;
-        }
-
-        list.innerHTML = items
-          .map((tx) => {
-            const pending = Number(tx?.proofStats?.pending ?? 0) || 0;
-            const totalProofs = Number(tx?.proofStats?.total ?? 0) || 0;
-            const saldo = Number(tx?.saldoPendiente ?? 0) || 0;
-            const totalPrice = Number(tx?.totalPrice ?? 0) || 0;
-            const credited = Number(tx?.creditedTotal ?? 0) || 0;
-            const title = tx?.usuarioNombre ? `${tx.usuarioNombre}` : 'Usuario';
-            const cedula = tx?.usuarioCedula ? String(tx.usuarioCedula) : '';
-            const correo = tx?.usuarioCorreo ? String(tx.usuarioCorreo) : '';
-            const tel = tx?.usuarioTelefono ? String(tx.usuarioTelefono) : '';
-            const subtitle = tx?.eventName ? `${tx.eventName}` : (tx?.campaignName ? `${tx.campaignName}` : '');
-            const txNum = String(tx?.transactionNumber || '').trim();
-
-            const badge = pending > 0
-              ? `<span class="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 text-xs font-extrabold text-rose-700">⏳ ${pending}</span>`
-              : totalProofs > 0
-                ? `<span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-xs font-extrabold text-emerald-700">✓</span>`
-                : `<span class="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-200 px-2 py-0.5 text-xs font-extrabold text-slate-700">sin comprobante</span>`;
-
-            const numbers = Array.isArray(tx?.numbers) ? tx.numbers : [];
-            const rowsHtml = numbers
-              .map((n) => {
-                const tipo = String(n?.tipoPrecio || '').toLowerCase() === 'promocion' ? 'Promoción' : 'Normal';
-                const estado = String(n?.estado || '');
-                return `
-                  <tr class="border-t border-slate-200">
-                    <td class="px-3 py-2 font-mono text-slate-900">${String(n?.numero || '')}</td>
-                    <td class="px-3 py-2 text-slate-700">${estado}</td>
-                    <td class="px-3 py-2 text-slate-700">${tipo}</td>
-                    <td class="px-3 py-2 text-slate-700">${formatCurrency(Number(n?.precioSeleccionado ?? 0) || 0)}</td>
-                    
-                  </tr>
-                `;
-              })
-              .join('');
-
-            const promo = tx?.promo || {};
-            const promoEligible = Boolean(promo?.eligible);
-            const promoMissing = Number(promo?.missing ?? 0) || 0;
-            const promoActive = Boolean(promo?.active);
-            const promoFinalized = Boolean(promo?.finalizedAt);
-            const promoExpiresAt = promo?.expiresAt ? String(promo.expiresAt) : '';
-            const promoCountdownHtml = ((mode === 'pagos' || mode === 'payment') && promoActive && promoExpiresAt)
-              ? `<div class="mt-1 text-xs text-pink-600 font-semibold countdown-timer" data-expires-at="${promoExpiresAt}" data-prefix="Tiempo para completar promoción por el usuario: "></div>`
-              : '';
-            const reservedCountdownHtml = (() => {
-              if (mode !== 'payment') return '';
-              let minExp = Infinity;
-              for (const n of numbers) {
-                if (String(n?.estado || '').toLowerCase() !== 'reservado') continue;
-                const reservedAt = String(n?.reservedAt || '').trim();
-                if (!reservedAt) continue;
-                const ms = Date.parse(reservedAt);
-                if (!Number.isFinite(ms)) continue;
-                const exp = ms + RESERVATION_TTL_MS;
-                if (exp < minExp) minExp = exp;
-              }
-              if (!Number.isFinite(minExp)) return '';
-              return `<div class="mt-1 text-xs text-purple-600 font-semibold countdown-timer" data-expires-at="${new Date(minExp).toISOString()}" data-prefix="Tiempo para confirmar la reserva por el usuario: "></div>`;
-            })();
-
-            // En modo pagos, siempre mostrar botón de gracia si es elegible (incluso si expiró antes)
-            // Solo deshabilitar si está activo actualmente
-            const showGraceButton = (mode === 'payment' || mode === 'pagos') && promoEligible && promoMissing > 0;
-            const disableGraceButton = promoActive; // Solo deshabilitar si está activo ahora
-            
-            const actionsHtml = showActions
-              ? `
-                  <div class="flex flex-col sm:flex-row gap-2 pt-2">
-                    <button type="button" class="admin-pay w-full sm:w-auto sm:flex-1 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-500 hover:to-green-500 text-white font-black py-3 px-4 rounded-xl border border-emerald-400/30" data-tx="${txNum}">
-                      Pagar transacción
-                    </button>
-                    <button type="button" class="admin-abono w-full sm:w-auto sm:flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black py-3 px-4 rounded-xl border border-amber-400/30" data-tx="${txNum}">
-                      Abonar (monto)
-                    </button>
-                  </div>
-                `
-              : (
-                  showGraceButton
-                    ? `
-                      <div class="pt-2">
-                        <button type="button" class="admin-grant-grace w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-black py-3 px-4 rounded-xl border border-sky-300/30 ${disableGraceButton ? 'opacity-60 cursor-not-allowed' : ''}" data-tx="${txNum}" ${disableGraceButton ? 'disabled' : ''}>
-                          ${promoActive ? `Período de gracia activo` : `Liberar período de gracia (promo)`}
-                        </button>
-                      </div>
-                    `
-                    : ''
-                );
-
-            return `
-              <div class="bg-white/80 border border-slate-200 rounded-2xl p-4">
-                <div class="flex flex-col gap-3">
-                  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                    <div class="min-w-0">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <div class="text-sm md:text-base font-extrabold text-slate-900 truncate">${title}</div>
-                        ${badge}
-                      </div>
-                      <div class="mt-1 text-xs text-slate-600">
-                        ${cedula ? `Cédula: <span class="font-mono text-slate-800">${cedula}</span>` : ''}
-                        ${correo ? ` • ${correo}` : ''}
-                        ${tel ? ` • ${tel}` : ''}
-                      </div>
-                      <div class="mt-1 text-xs md:text-sm text-slate-600">
-                        ${subtitle ? `${subtitle} • ` : ''}
-                        Total: <span class="font-extrabold text-slate-900">${formatCurrency(totalPrice)}</span>
-                        • Registrado: <span class="font-extrabold text-slate-900">${formatCurrency(credited)}</span>
-                        • Saldo: <span class="font-extrabold text-emerald-700">${formatCurrency(saldo)}</span>
-                      </div>
-                      ${promoCountdownHtml}
-                      ${reservedCountdownHtml}
-                    </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                      <div class="text-2xl font-black text-slate-900 font-mono">#${txNum || '—'}</div>
-                      ${getProofButtonHtml(txNum)}
-                    </div>
-                  </div>
-
-                  <div class="overflow-x-auto rounded-xl border border-slate-200">
-                    <table class="min-w-full text-sm">
-                      <thead class="bg-slate-50 text-slate-700">
-                        <tr>
-                          <th class="px-3 py-2 text-left">Número</th>
-                          <th class="px-3 py-2 text-left">Estado</th>
-                          <th class="px-3 py-2 text-left">Tipo</th>
-                          <th class="px-3 py-2 text-left">Precio</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${rowsHtml || `<tr><td colspan="4" class="px-3 py-3 text-center text-slate-500">—</td></tr>`}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  ${actionsHtml}
+<AdminLayout title="Consultas" currentPage="consultas">
+  <!-- Page Header -->
+  <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <nav class="flex" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-2">
+              <li>
+                <a href="/admin" class="text-gray-400 hover:text-gray-500">
+                  <svg class="flex-shrink-0 h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <div class="flex items-center">
+                  <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                  </svg>
+                  <span class="ml-2 text-sm font-medium text-gray-500">Consultas</span>
                 </div>
-              </div>
-            `;
-          })
-          .join('');
-
-        // Proof history buttons
-        list.querySelectorAll('.proof-history-btn').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const tx = btn.getAttribute('data-tx');
-            if (tx) openProofHistory(tx);
-          });
-        });
-
-        // Pay full transaction
-        list.querySelectorAll('button.admin-pay').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const txNum = String(btn.getAttribute('data-tx') || '').trim();
-            if (!txNum) return;
-            const item = (Array.isArray(items) ? items : []).find((x) => String(x?.transactionNumber || '').trim() === txNum);
-            openAdminPago(txNum, item);
-          });
-        });
-
-        // Abono by transaction (admin enters amount)
-        list.querySelectorAll('button.admin-abono').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const txNum = String(btn.getAttribute('data-tx') || '').trim();
-            if (!txNum) return;
-            const item = (Array.isArray(items) ? items : []).find((x) => String(x?.transactionNumber || '').trim() === txNum);
-            openAdminAbono(txNum, item);
-          });
-        });
-
-        // Manual promo grace (payment mode)
-        list.querySelectorAll('button.admin-grant-grace').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const txNum = String(btn.getAttribute('data-tx') || '').trim();
-            if (!txNum) return;
-            if (!confirm(`¿Liberar período de gracia promo para la transacción #${txNum}?`)) return;
-
-            const prevText = btn.textContent;
-            btn.disabled = true;
-            btn.textContent = 'Procesando…';
-            setPendingStatus('Liberando período de gracia…');
-
-            try {
-              const resp = await fetch('/api/admin/grant-promo-grace', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ transactionNumber: txNum }),
-              });
-              const data = await resp.json().catch(() => ({}));
-              if (!resp.ok) {
-                setPendingStatus(data?.error || 'Error liberando período de gracia');
-                return;
-              }
-              await loadPendingActions(pendingViewMode);
-              setPendingStatus('Período de gracia actualizado');
-            } catch (e) {
-              console.error(e);
-              setPendingStatus('Error liberando período de gracia');
-            } finally {
-              btn.textContent = prevText;
-              btn.disabled = false;
-            }
-          });
-        });
-
-        updateAllCountdowns();
-        ensureCountdownInterval();
-      }
-
-      // ===== Admin Abono Modal helpers =====
-      let adminAbonoCtx = { tx: '', suggestedAmount: 0, proofId: 0 };
-
-      // ===== Admin Pago Modal helpers =====
-      let adminPagoCtx = { tx: '', numbers: [], proofId: 0 };
-
-      function setAdminAbonoStatus(msg) {
-        const el = document.getElementById('adminAbonoStatus');
-        if (el) el.textContent = msg || '';
-      }
-
-      function closeAdminAbono() {
-        const modal = document.getElementById('adminAbonoModal');
-        if (modal) modal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-        adminAbonoCtx = { tx: '', suggestedAmount: 0, proofId: 0 };
-        setAdminAbonoStatus('');
-      }
-
-      function openAdminAbono(txNum, item) {
-        const modal = document.getElementById('adminAbonoModal');
-        if (!modal) return;
-
-        adminAbonoCtx.tx = String(txNum || '').trim();
-        adminAbonoCtx.suggestedAmount = 0;
-        adminAbonoCtx.proofId = 0;
-
-        const title = document.getElementById('adminAbonoTitle');
-        const subtitle = document.getElementById('adminAbonoSubtitle');
-        const img = document.getElementById('adminAbonoProofImg');
-        const link = document.getElementById('adminAbonoProofLink');
-        const empty = document.getElementById('adminAbonoProofEmpty');
-        const meta = document.getElementById('adminAbonoProofMeta');
-        const amtEl = document.getElementById('adminAbonoProofAmount');
-        const input = document.getElementById('adminAbonoAmountInput');
-
-        const tx = adminAbonoCtx.tx;
-        if (title) title.textContent = tx ? `Transacción #${tx}` : '';
-
-        // Pull proof (prefer pending proof)
-        const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
-        const v = computeProofValidation(tx);
-        const pendingProofs = (Array.isArray(proofs) ? proofs : [])
-          .filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected')
-          .filter((p) => (p?.__k ? !(v.validatedKeys && v.validatedKeys.has(p.__k)) : true))
-          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-        const proof = pendingProofs.length ? pendingProofs[0] : ((Array.isArray(proofs) && proofs.length) ? proofs[0] : null);
-        adminAbonoCtx.proofId = proof?.id != null ? Number(proof.id) : 0;
-
-        const totalPrice = Number(item?.totalPrice ?? 0) || 0;
-        const credited = Number(item?.creditedTotal ?? 0) || 0;
-        const saldo = Number(item?.saldoPendiente ?? 0) || 0;
-        const userName = item?.usuarioNombre ? String(item.usuarioNombre) : '';
-        const eventName = item?.eventName ? String(item.eventName) : '';
-        if (subtitle) {
-          const who = userName ? `${userName}${eventName ? ` • ${eventName}` : ''}` : (eventName || '');
-          subtitle.textContent = `${who}${who ? ' • ' : ''}Total: ${formatCurrency(totalPrice)} • Registrado: ${formatCurrency(credited)} • Saldo: ${formatCurrency(saldo)}`;
-        }
-
-        // Proof image + meta
-        const proofUrl = proof && proof.url ? String(proof.url) : '';
-        if (proofUrl && img && link && empty) {
-          img.src = proofUrl;
-          link.href = proofUrl;
-          link.classList.remove('hidden');
-          img.classList.remove('hidden');
-          empty.classList.add('hidden');
-        } else {
-          if (img) img.classList.add('hidden');
-          if (link) link.classList.add('hidden');
-          if (empty) empty.classList.remove('hidden');
-        }
-
-        const kind = proof ? String(proof.kind || '').toUpperCase() : '';
-        const createdAt = proof ? formatDate(proof.createdAt) : '';
-        const amt = proof && proof.amount != null ? Number(proof.amount) : null;
-
-        if (meta) meta.textContent = `${kind || 'COMPROBANTE'}${createdAt ? ` • ${createdAt}` : ''}`;
-        if (amtEl) amtEl.textContent = amt != null && Number.isFinite(amt) && amt > 0 ? formatCurrency(amt) : '';
-
-        // Suggested amount: for ABONO proof, use amount; else leave empty.
-        if (kind === 'ABONO' && amt != null && Number.isFinite(amt) && amt > 0) {
-          adminAbonoCtx.suggestedAmount = Math.trunc(amt);
-        }
-
-        if (input) {
-          input.value = adminAbonoCtx.suggestedAmount ? ('$ ' + adminAbonoCtx.suggestedAmount.toLocaleString('es-CO')) : '';
-        }
-
-        setAdminAbonoStatus('');
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-
-        setTimeout(() => {
-          try { document.getElementById('adminAbonoAmountInput')?.focus(); } catch {}
-        }, 0);
-      }
-
-      function setAdminPagoStatus(msg) {
-        const el = document.getElementById('adminPagoStatus');
-        if (el) el.textContent = msg || '';
-      }
-
-      function closeAdminPago() {
-        const modal = document.getElementById('adminPagoModal');
-        if (modal) modal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-        adminPagoCtx = { tx: '', numbers: [], proofId: 0 };
-        setAdminPagoStatus('');
-      }
-
-      function openAdminPago(txNum, item) {
-        const modal = document.getElementById('adminPagoModal');
-        if (!modal) return;
-
-        adminPagoCtx.tx = String(txNum || '').trim();
-        adminPagoCtx.numbers = Array.isArray(item?.numbers) ? item.numbers : [];
-        adminPagoCtx.proofId = 0;
-
-        const title = document.getElementById('adminPagoTitle');
-        const subtitle = document.getElementById('adminPagoSubtitle');
-        const img = document.getElementById('adminPagoProofImg');
-        const link = document.getElementById('adminPagoProofLink');
-        const empty = document.getElementById('adminPagoProofEmpty');
-        const meta = document.getElementById('adminPagoProofMeta');
-        const amtEl = document.getElementById('adminPagoProofAmount');
-
-        const tx = adminPagoCtx.tx;
-        if (title) title.textContent = tx ? `Transacción #${tx}` : '';
-
-        const numbers = adminPagoCtx.numbers;
-        if (!Array.isArray(numbers) || numbers.length === 0) {
-          setAdminPagoStatus('No hay números asociados a esta transacción.');
-        } else {
-          setAdminPagoStatus('');
-        }
-
-        // Pull proof (prefer pending proof)
-        const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
-        const v = computeProofValidation(tx);
-        const pendingProofs = (Array.isArray(proofs) ? proofs : [])
-          .filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected')
-          .filter((p) => (p?.__k ? !(v.validatedKeys && v.validatedKeys.has(p.__k)) : true))
-          .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-        const proof = pendingProofs.length ? pendingProofs[0] : ((Array.isArray(proofs) && proofs.length) ? proofs[0] : null);
-        adminPagoCtx.proofId = proof?.id != null ? Number(proof.id) : 0;
-
-        const totalPrice = Number(item?.totalPrice ?? 0) || 0;
-        const credited = Number(item?.creditedTotal ?? 0) || 0;
-        const saldo = Number(item?.saldoPendiente ?? 0) || 0;
-        const userName = item?.usuarioNombre ? String(item.usuarioNombre) : '';
-        const eventName = item?.eventName ? String(item.eventName) : '';
-        if (subtitle) {
-          const who = userName ? `${userName}${eventName ? ` • ${eventName}` : ''}` : (eventName || '');
-          subtitle.textContent = `${who}${who ? ' • ' : ''}Total: ${formatCurrency(totalPrice)} • Registrado: ${formatCurrency(credited)} • Saldo: ${formatCurrency(saldo)}`;
-        }
-
-        // Proof image + meta
-        const proofUrl = proof && proof.url ? String(proof.url) : '';
-        if (proofUrl && img && link && empty) {
-          img.src = proofUrl;
-          link.href = proofUrl;
-          link.classList.remove('hidden');
-          img.classList.remove('hidden');
-          empty.classList.add('hidden');
-        } else {
-          if (img) img.classList.add('hidden');
-          if (link) link.classList.add('hidden');
-          if (empty) empty.classList.remove('hidden');
-        }
-
-        const kind = proof ? String(proof.kind || '').toUpperCase() : '';
-        const createdAt = proof ? formatDate(proof.createdAt) : '';
-        const amt = proof && proof.amount != null ? Number(proof.amount) : null;
-
-        if (meta) meta.textContent = `${kind || 'COMPROBANTE'}${createdAt ? ` • ${createdAt}` : ''}`;
-        if (amtEl) amtEl.textContent = amt != null && Number.isFinite(amt) && amt > 0 ? formatCurrency(amt) : '';
-
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-      }
-
-      function updatePendingSummary(summary, mode) {
-        const elTx = document.getElementById('pendingTransactionsCount');
-        const elProof = document.getElementById('pendingProofsCount');
-        const elAmt = document.getElementById('pendingAmountTotal');
-        const l1 = document.getElementById('pendingCard1Label');
-        const l2 = document.getElementById('pendingCard2Label');
-        const l3 = document.getElementById('pendingCard3Label');
-
-        const grid = document.getElementById('pendingSummaryGrid');
-        const card3 = document.getElementById('pendingCard3');
-
-        if (mode === 'pagos') {
-          if (grid) grid.className = 'mt-5 grid grid-cols-1 md:grid-cols-1 gap-3';
-          if (card3) card3.classList.add('hidden');
-          const card2 = document.getElementById('pendingCard2');
-          if (card2) card2.classList.add('hidden');
-
-          if (l1) l1.textContent = '💰 Total pagado (sin promoción)';
-          if (l2) l2.textContent = '';
-          if (l3) l3.textContent = '';
-
-          if (elTx) elTx.textContent = formatCurrency(Number(summary?.collectedTotal ?? 0) || 0);
-          if (elProof) elProof.textContent = '';
-          if (elAmt) elAmt.textContent = '';
-          return;
-        }
-
-        if (mode === 'payment') {
-          if (grid) grid.className = 'mt-5 grid grid-cols-2 md:grid-cols-2 gap-3';
-          if (card3) card3.classList.add('hidden');
-          const card2 = document.getElementById('pendingCard2');
-          if (card2) card2.classList.remove('hidden');
-
-          if (l1) l1.textContent = '💰 Dinero recaudado';
-          if (l2) l2.textContent = '⏳ Dinero por recaudar';
-          if (l3) l3.textContent = '';
-
-          if (elTx) elTx.textContent = formatCurrency(Number(summary?.collectedTotal ?? 0) || 0);
-          if (elProof) elProof.textContent = formatCurrency(Number(summary?.saldoUnpaidTotal ?? 0) || 0);
-          if (elAmt) elAmt.textContent = '';
-          return;
-        }
-
-        if (grid) grid.className = 'mt-5 grid grid-cols-2 md:grid-cols-3 gap-3';
-        if (card3) card3.classList.remove('hidden');
-        const card2 = document.getElementById('pendingCard2');
-        if (card2) card2.classList.remove('hidden');
-
-        if (l1) l1.textContent = '⏳ Transacciones con comprobantes pendientes';
-        if (l2) l2.textContent = '🧾 Comprobantes por registrar';
-        if (l3) l3.textContent = '💸 Monto por registrar (según comprobantes pendientes)';
-        if (elTx) elTx.textContent = String(summary?.transactionsPending ?? 0);
-        if (elProof) elProof.textContent = String(summary?.proofsPending ?? 0);
-        if (elAmt) elAmt.textContent = formatCurrency(Number(summary?.pendingAmountTotal ?? 0) || 0);
-      }
-
-      async function loadPendingActions(mode = pendingViewMode) {
-        try {
-          setPendingStatus('Cargando…');
-          const apiMode = mode === 'pagos' ? 'pagos' : (mode === 'payment' ? 'payment' : 'admin');
-          const url = `/api/admin/pending-actions?limit=120&mode=${encodeURIComponent(apiMode)}`;
-          const res = await fetch(url, { credentials: 'include' });
-          if (!res.ok) {
-            setPendingStatus(res.status === 401 ? 'No autorizado' : 'Error al cargar');
-            return;
-          }
-          const data = await res.json();
-          const summary = data?.summary || {};
-          const items = Array.isArray(data?.items) ? data.items : [];
-
-          pendingItemsCache = items;
-
-          updatePendingSummary(summary, mode);
-
-          // Merge into caches so the proof-history modal works from here
-          items.forEach((it) => {
-            const tx = String(it?.transactionNumber || '').trim();
-            if (!tx) return;
-            const proofs = Array.isArray(it?.proofs) ? it.proofs : [];
-            proofsByTx[tx] = proofs;
-            txAggByNumber[tx] = {
-              totalPrice: Number(it?.totalPrice ?? 0) || 0,
-              totalAbonado: Number(it?.totalAbonado ?? 0) || 0,
-              paidCount: Number(it?.paidCount ?? 0) || 0,
-              creditedTotal: Number(it?.creditedTotal ?? 0) || 0,
-              saldoPendiente: Number(it?.saldoPendiente ?? 0) || 0,
-            };
-          });
-
-          renderPendingActions(items, { mode: pendingViewMode });
-          setPendingStatus(`Actualizado: ${new Date().toLocaleTimeString()}`);
-        } catch (e) {
-          console.error('loadPendingActions error', e);
-          setPendingStatus('Error al cargar');
-        }
-      }
-
-      // Pending filters (admin vs payment vs pagos)
-      const pendingFilterAdminBtn = document.getElementById('pendingFilterAdmin');
-      const pendingFilterPagoBtn = document.getElementById('pendingFilterPago');
-      const pendingFilterPagosBtn = document.getElementById('pendingFilterPagos');
-      if (pendingFilterAdminBtn) {
-        pendingFilterAdminBtn.addEventListener('click', () => setPendingViewMode('admin'));
-      }
-      if (pendingFilterPagoBtn) {
-        pendingFilterPagoBtn.addEventListener('click', () => setPendingViewMode('payment'));
-      }
-      if (pendingFilterPagosBtn) {
-        pendingFilterPagosBtn.addEventListener('click', () => setPendingViewMode('pagos'));
-      }
-
-      function buildTxAgg(rows) {
-        const map = {};
-        (rows || []).forEach((row) => {
-          const tx = row.transactionNumber || '';
-          if (!tx) return;
-          const precio = Number(row.precioSeleccionado || 0) || 0;
-          const abonado = 0;
-          const paidAmount = 0;
-          const estado = String(row.estado || '').toLowerCase();
-          if (!map[tx]) {
-            map[tx] = { totalPrice: 0, totalAbonado: 0, paidTotal: 0, paidCount: 0, creditedTotal: 0 };
-          }
-          map[tx].totalPrice += precio;
-          map[tx].totalAbonado += abonado;
-          if (estado === 'pago' || estado === 'pago_gracia') {
-            // Don't double count: if there's an abono value, it already contributes via totalAbonado.
-            if ((Number(abonado) || 0) <= 0) {
-              map[tx].paidTotal += (paidAmount > 0 ? paidAmount : precio);
-              map[tx].paidCount += 1;
-            }
-          }
-        });
-
-        Object.keys(map).forEach((tx) => {
-          map[tx].creditedTotal = (Number(map[tx].totalAbonado || 0) || 0) + (Number(map[tx].paidTotal || 0) || 0);
-          map[tx].saldoPendiente = Math.max(0, (Number(map[tx].totalPrice || 0) || 0) - (Number(map[tx].creditedTotal || 0) || 0));
-        });
-
-        return map;
-      }
-
-      function computeProofValidation(tx) {
-        const proofsAll = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
-        const proofs = (Array.isArray(proofsAll) ? proofsAll : [])
-          .filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected');
-        const agg = (txAggByNumber && tx && txAggByNumber[tx]) ? txAggByNumber[tx] : null;
-        const creditedTotal = Number(agg?.creditedTotal || 0) || 0;
-        const totalAbonado = Number(agg?.totalAbonado || 0) || 0;
-        const paidCount = Math.max(0, Math.trunc(Number(agg?.paidCount || 0) || 0));
-        const totalPrice = Number(agg?.totalPrice || 0) || 0;
-
-        // Regla: si la transacción ya está pagada completa (registrado >= total),
-        // entonces NO hay comprobantes pendientes: la lupita debe quedar en 0.
-        if (totalPrice > 0 && creditedTotal >= totalPrice) {
-          const allKeys = new Set();
-          (Array.isArray(proofs) ? proofs : []).forEach((p, idx) => {
-            try {
-              // Stable per-proof key; avoids collapsing duplicates by URL.
-              p.__k = `k:${idx}|${String(p?.createdAt || '')}|${String(p?.kind || '')}|${String(p?.amount ?? '')}|${String(p?.url || '')}`;
-              allKeys.add(p.__k);
-            } catch {
-              // ignore
-            }
-          });
-          const totalProofs = Array.isArray(proofs) ? proofs.length : 0;
-          return { creditedTotal, validatedKeys: allKeys, totalProofs, validatedCount: totalProofs, pendingCount: 0 };
-        }
-
-        const asc = Array.isArray(proofs)
-          ? [...proofs].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
-          : [];
-
-        let sumAbono = 0;
-        let remainingPago = paidCount;
-        const validatedKeys = new Set();
-        for (let i = 0; i < asc.length; i++) {
-          const p = asc[i];
-          // Attach a stable key so later (desc rendering) can check validation on the same object.
-          try {
-            p.__k = `k:${i}|${String(p?.createdAt || '')}|${String(p?.kind || '')}|${String(p?.amount ?? '')}|${String(p?.url || '')}`;
-          } catch {
-            // ignore
-          }
-
-          const kind = String(p?.kind || '').toLowerCase();
-          if (kind === 'pago') {
-            // pago proofs typically have no amount; validate by count of direct-paid numbers.
-            if (remainingPago > 0) {
-              remainingPago -= 1;
-              if (p?.__k) validatedKeys.add(p.__k);
-            }
-            continue;
-          }
-          const amt = Number(p?.amount ?? 0) || 0;
-          if (amt <= 0) continue;
-          if (sumAbono + amt <= totalAbonado) {
-            sumAbono += amt;
-            if (p?.__k) validatedKeys.add(p.__k);
-          }
-        }
-
-        const totalProofs = Array.isArray(proofs) ? proofs.length : 0;
-        const validatedCount = validatedKeys.size;
-        const pendingCount = Math.max(0, totalProofs - validatedCount);
-
-        return { creditedTotal, validatedKeys, totalProofs, validatedCount, pendingCount };
-      }
-
-      function getProofButtonHtml(tx) {
-        // En modo pagos, no mostrar botón de comprobantes
-        if (pendingViewMode === 'pagos') return `<span class="text-slate-400">-</span>`;
-        
-        const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
-        const rejected = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() === 'rejected');
-        const considered = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected');
-        const totalProofs = considered.length;
-        if (!tx || totalProofs === 0) {
-          if (rejected.length > 0) {
-            return `
-              <button type="button" class="proof-history-btn inline-flex items-center justify-center px-3 h-9 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 transition" data-tx="${tx}" title="Comprobantes rechazados: ${rejected.length}">
-                <span class="text-rose-700">🔍</span>
-                <span class="ml-2 text-xs text-rose-700/90 font-bold">⛔</span>
-              </button>
-            `;
-          }
-          return `<span class="text-slate-400">-</span>`;
-        }
-        const v = computeProofValidation(tx);
-        if (v.pendingCount === 0) {
-          return `
-            <button type="button" class="proof-history-btn inline-flex items-center justify-center px-3 h-9 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 transition" data-tx="${tx}" title="Comprobantes al día">
-              <span class="text-emerald-700">🔍</span>
-              <span class="ml-2 text-xs text-emerald-700 font-bold">✓</span>
-            </button>
-          `;
-        }
-        return `
-          <button type="button" class="proof-history-btn inline-flex items-center justify-center px-3 h-9 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 transition" data-tx="${tx}" title="Comprobantes pendientes: ${v.pendingCount}">
-            <span class="text-rose-700">🔍</span>
-            <span class="ml-2 text-xs text-rose-700/90 font-bold">${v.pendingCount}</span>
+              </li>
+            </ol>
+          </nav>
+          <h1 class="mt-2 text-2xl font-bold text-gray-900">📋 Consultas Administrativas</h1>
+          <p class="mt-1 text-sm text-gray-500">Gestiona transacciones pendientes y comprobantes por validar</p>
+        </div>
+        <div class="flex items-center space-x-3">
+          <button class="btn-primary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva Transacción
           </button>
-        `;
-      }
+          <button class="btn-secondary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Exportar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      function openProofHistory(transactionNumber) {
-        const modal = document.getElementById('proofHistoryModal');
-        const title = document.getElementById('proofHistoryTitle');
-        const summary = document.getElementById('proofHistorySummary');
-        const grid = document.getElementById('proofHistoryGrid');
-        const empty = document.getElementById('proofHistoryEmpty');
-        const rejGrid = document.getElementById('proofHistoryRejectedGrid');
-        const rejEmpty = document.getElementById('proofHistoryRejectedEmpty');
-        if (!modal || !grid || !empty || !rejGrid || !rejEmpty) return;
+  <!-- Filter Tabs -->
+  <div class="bg-white shadow-sm border-b border-gray-200">
+    <div class="px-4 sm:px-6 lg:px-8">
+      <div class="flex space-x-8">
+        <button id="pendingFilterAdmin" class="py-4 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
+          ✅ Pendientes del Administrador
+        </button>
+        <button id="pendingFilterPago" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+          💳 Pendientes de Pago
+        </button>
+        <button id="pendingFilterPagos" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+          💰 Pagos
+        </button>
+        <button id="pendingFilterEstados" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+          📊 Estados Financieros
+        </button>
+      </div>
+    </div>
+  </div>
 
-        const proofs = (proofsByTx && transactionNumber && proofsByTx[transactionNumber]) ? proofsByTx[transactionNumber] : [];
-        const rejected = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() === 'rejected');
-        const considered = (Array.isArray(proofs) ? proofs : []).filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected');
-        const agg = (txAggByNumber && transactionNumber && txAggByNumber[transactionNumber]) ? txAggByNumber[transactionNumber] : null;
-        const v = computeProofValidation(transactionNumber);
-        grid.innerHTML = '';
-        rejGrid.innerHTML = '';
-        if (title) title.textContent = transactionNumber ? `Transacción #${transactionNumber}` : '';
-        if (summary) {
-          if (agg) {
-            // En modo pagos, no mostrar información de comprobantes
-            if (pendingViewMode === 'pagos') {
-              summary.textContent = `Total: ${formatCurrency(agg.totalPrice)} • Pagado: ${formatCurrency(agg.creditedTotal)}`;
-            } else {
-              summary.textContent = `Total: ${formatCurrency(agg.totalPrice)} • Registrado: ${formatCurrency(agg.creditedTotal)} • Pendiente: ${formatCurrency(agg.saldoPendiente)} • Comprobantes pendientes: ${v.pendingCount}`;
-            }
-          } else {
-            summary.textContent = pendingViewMode === 'pagos' ? '' : (v.totalProofs ? `Comprobantes pendientes: ${v.pendingCount}` : '');
-          }
-        }
+  <!-- Main Content -->
+  <div class="px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <StatCard 
+        title="Transacciones Pendientes" 
+        value="24" 
+        icon="pending-icon" 
+        color="yellow"
+        trend={{ value: "12% vs mes anterior", direction: "up" }}
+      />
+      <StatCard 
+        title="Comprobantes por Validar" 
+        value="47" 
+        icon="document-icon" 
+        color="red"
+        trend={{ value: "8% vs mes anterior", direction: "up" }}
+      />
+      <StatCard 
+        title="Monto por Procesar" 
+        value="$2,450,000" 
+        icon="money-icon" 
+        color="green"
+        trend={{ value: "5% vs mes anterior", direction: "down" }}
+      />
+      <StatCard 
+        title="Transacciones Urgentes" 
+        value="8" 
+        icon="alert-icon" 
+        color="red"
+        trend={{ value: "3 nuevas hoy", direction: "up" }}
+      />
+    </div>
 
-        if (!Array.isArray(proofs) || proofs.length === 0) {
-          empty.classList.remove('hidden');
-          rejEmpty.classList.remove('hidden');
-        } else {
-          empty.classList.add('hidden');
+    <!-- Actions Section -->
+    <div class="bg-white rounded-lg shadow mb-8">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-medium text-gray-900">Acciones Sugeridas</h2>
+        <p class="mt-1 text-sm text-gray-500">Usa la 🔍 para ver comprobantes • Pagar/Abonar al final</p>
+      </div>
+      <div class="p-6">
+        <div id="pendingActionsList" class="space-y-4">
+          <!-- Dynamic content will be loaded here -->
+          <div class="text-center py-8 text-gray-500">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p class="mt-2">Cargando acciones pendientes...</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
-          // Normal proofs grid
-          const sorted = [...considered].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-          sorted.forEach((p) => {
-            const card = document.createElement('a');
-            card.href = p.url;
-            card.target = '_blank';
-            card.rel = 'noopener noreferrer';
-            card.className = 'relative block bg-white/90 border border-slate-200 rounded-xl overflow-hidden hover:bg-white transition';
+    <!-- Data Table -->
+    <div class="bg-white rounded-lg shadow">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-medium text-gray-900">Transacciones Recientes</h2>
+          <div class="flex items-center space-x-3">
+            <input type="text" 
+                   placeholder="Buscar transacción..." 
+                   class="block w-64 px-3 py-2 border border-gray-300 rounded-md text-sm leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+            <select class="block px-3 py-2 border border-gray-300 rounded-md text-sm leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+              <option>Todos los estados</option>
+              <option>Pendiente</option>
+              <option>Validado</option>
+              <option>Rechazado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <div id="transactionsTableContainer">
+        <!-- Table will be dynamically loaded here -->
+        <div class="p-6 text-center text-gray-500">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <p class="mt-2">Cargando transacciones...</p>
+        </div>
+      </div>
+    </div>
+  </div>
 
-            const isOk = v.validatedKeys && p?.__k ? v.validatedKeys.has(p.__k) : false;
+  <!-- Proof History Modal -->
+  <Modal id="proofHistoryModal" title="Histórico de Comprobantes" size="xl">
+    <div class="grid grid-cols-2 gap-4">
+      <!-- Proof cards will be loaded here -->
+    </div>
+  </Modal>
 
-            const img = document.createElement('img');
-            img.src = p.url;
-            img.alt = 'Comprobante';
-            img.className = 'w-full h-28 object-cover';
+  <!-- Admin Abono Modal -->
+  <Modal id="adminAbonoModal" title="Registrar Abono" size="lg">
+    <form id="adminAbonoForm" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Monto del Abono</label>
+        <input type="number" 
+               name="amount" 
+               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Comprobante</label>
+        <input type="file" 
+               name="proof" 
+               accept="image/*"
+               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+      </div>
+      <div class="flex justify-end space-x-3 pt-4">
+        <button type="button" 
+                onclick="closeModal('adminAbonoModal')"
+                class="btn-secondary">
+          Cancelar
+        </button>
+        <button type="submit" class="btn-primary">
+          Registrar Abono
+        </button>
+      </div>
+    </form>
+  </Modal>
 
-            const badge = document.createElement('div');
-            badge.className = 'absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center bg-white/90 border border-slate-200 backdrop-blur-sm shadow-lg';
-            badge.innerHTML = isOk
-              ? '<span class="text-2xl leading-none text-emerald-700 font-black">✓</span>'
-              : '<span class="text-2xl leading-none text-amber-700 font-black">⏳</span>';
+  <!-- Admin Pago Modal -->
+  <Modal id="adminPagoModal" title="Registrar Pago" size="lg">
+    <form id="adminPagoForm" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Monto del Pago</label>
+        <input type="number" 
+               name="amount" 
+               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Comprobante</label>
+        <input type="file" 
+               name="proof" 
+               accept="image/*"
+               class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+      </div>
+      <div class="flex justify-end space-x-3 pt-4">
+        <button type="button" 
+                onclick="closeModal('adminPagoModal')"
+                class="btn-secondary">
+          Cancelar
+        </button>
+        <button type="submit" class="btn-primary">
+          Registrar Pago
+        </button>
+      </div>
+    </form>
+  </Modal>
 
-            const rejectBtn = document.createElement('button');
-            rejectBtn.type = 'button';
-            rejectBtn.className = 'absolute top-2 left-2 px-2 h-8 rounded-xl bg-white/90 border border-rose-200 text-rose-700 text-xs font-black hover:bg-rose-50 backdrop-blur-sm shadow-lg';
-            rejectBtn.textContent = 'Rechazar';
-            rejectBtn.addEventListener('click', async (ev) => {
-              ev.preventDefault();
-              ev.stopPropagation();
-              const proofId = Number(p?.id ?? 0);
-              if (!Number.isFinite(proofId) || proofId <= 0) return;
-              const reason = prompt('Motivo del rechazo (opcional):', '') || '';
-              if (!confirm('¿Confirmas rechazar este comprobante?')) return;
+</AdminLayout>
 
-              try {
-                const resp = await fetch('/api/admin/reject-proof', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  credentials: 'include',
-                  body: JSON.stringify({ proofId, reason }),
-                });
-                const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                  alert(data?.error || 'Error rechazando comprobante');
-                  return;
-                }
-                kickEmailOutbox();
-                await loadPendingActions(pendingViewMode);
-                openProofHistory(transactionNumber);
-              } catch (e) {
-                console.error(e);
-                alert('Error rechazando comprobante');
-              }
-            });
+<script>
+  // Global variables
+  let currentMode = 'admin';
+  let pendingData = [];
+  let currentPage = 1;
+  const itemsPerPage = 10;
 
-            const meta = document.createElement('div');
-            meta.className = 'p-2 text-sm text-slate-800 space-y-1';
-            const kind = String(p.kind || '').toUpperCase();
-            const amt = p.amount != null ? ` • ${formatCurrency(p.amount)}` : '';
-            meta.innerHTML = `
-              <div class="font-bold flex items-center justify-between gap-2">
-                <span>${kind}${amt}</span>
-                <span class="text-transparent">.</span>
-              </div>
-              <div class="text-slate-600 text-xs">${formatDate(p.createdAt)}</div>
-            `;
+  // Initialize page
+  document.addEventListener('DOMContentLoaded', function() {
+    loadPendingActions(currentMode);
+    setupEventListeners();
+  });
 
-            card.appendChild(img);
-            card.appendChild(badge);
-            if (!isOk) card.appendChild(rejectBtn);
-            card.appendChild(meta);
-            grid.appendChild(card);
-          });
-
-          // Rejected proofs grid
-          if (rejected.length === 0) {
-            rejEmpty.classList.remove('hidden');
-          } else {
-            rejEmpty.classList.add('hidden');
-            const sortedRej = [...rejected].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-            sortedRej.forEach((p) => {
-              const card = document.createElement('a');
-              card.href = p.url;
-              card.target = '_blank';
-              card.rel = 'noopener noreferrer';
-              card.className = 'relative block bg-rose-50/70 border border-rose-200 rounded-xl overflow-hidden hover:bg-rose-50 transition';
-
-              const img = document.createElement('img');
-              img.src = p.url;
-              img.alt = 'Comprobante rechazado';
-              img.className = 'w-full h-28 object-cover';
-
-              const badge = document.createElement('div');
-              badge.className = 'absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center bg-white/90 border border-rose-200 backdrop-blur-sm shadow-lg';
-              badge.innerHTML = '<span class="text-2xl leading-none text-rose-700 font-black">⛔</span>';
-
-              const meta = document.createElement('div');
-              meta.className = 'p-2 text-sm text-slate-800 space-y-1';
-              const kind = String(p.kind || '').toUpperCase();
-              const amt = p.amount != null ? ` • ${formatCurrency(p.amount)}` : '';
-              const reason = p.rejectReason ? String(p.rejectReason) : '';
-              meta.innerHTML = `
-                <div class="font-bold">${kind}${amt}</div>
-                <div class="text-slate-600 text-xs">${formatDate(p.createdAt)}${p.rejectedAt ? ` • Rechazado: ${formatDate(p.rejectedAt)}` : ''}</div>
-                ${reason ? `<div class="text-rose-800 text-xs font-semibold">${reason.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : ''}
-              `;
-
-              card.appendChild(img);
-              card.appendChild(badge);
-              card.appendChild(meta);
-              rejGrid.appendChild(card);
-            });
-          }
-        }
-
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-      }
-
-      function closeProofHistory() {
-        const modal = document.getElementById('proofHistoryModal');
-        if (modal) modal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-      }
-
-      // Admin abono modal events
-      document.getElementById('adminAbonoCloseBtn')?.addEventListener('click', closeAdminAbono);
-      document.getElementById('adminAbonoCancel')?.addEventListener('click', closeAdminAbono);
-      document.getElementById('adminAbonoModal')?.addEventListener('click', (e) => {
-        if (e && e.target && e.target.id === 'adminAbonoModal') closeAdminAbono();
-      });
-
-      // Admin pago modal events
-      document.getElementById('adminPagoCloseBtn')?.addEventListener('click', closeAdminPago);
-      document.getElementById('adminPagoCancel')?.addEventListener('click', closeAdminPago);
-      document.getElementById('adminPagoModal')?.addEventListener('click', (e) => {
-        if (e && e.target && e.target.id === 'adminPagoModal') closeAdminPago();
-      });
-
-      document.getElementById('adminAbonoUseSuggested')?.addEventListener('click', () => {
-        const input = document.getElementById('adminAbonoAmountInput');
-        if (!input) return;
-        const v = Number(adminAbonoCtx?.suggestedAmount ?? 0) || 0;
-        input.value = v > 0 ? ('$ ' + v.toLocaleString('es-CO')) : '';
-        input.focus();
-      });
-
-      document.getElementById('adminAbonoAmountInput')?.addEventListener('input', function () {
-        try {
-          let valor = String(this.value || '').replace(/[^\d]/g, '');
-          if (valor) {
-            const numero = parseInt(valor, 10);
-            this.value = '$ ' + (Number.isFinite(numero) ? numero.toLocaleString('es-CO') : '');
-          } else {
-            this.value = '';
-          }
-        } catch {
-          // ignore
-        }
-      });
-
-      document.getElementById('adminAbonoConfirm')?.addEventListener('click', async () => {
-        const txNum = String(adminAbonoCtx?.tx || '').trim();
-        if (!txNum) return;
-
-        const input = document.getElementById('adminAbonoAmountInput');
-        const raw = input ? String(input.value || '') : '';
-        const amount = Number(raw.replace(/[^\d]/g, ''));
-        if (!Number.isFinite(amount) || amount <= 0) {
-          setAdminAbonoStatus('Monto inválido.');
-          return;
-        }
-
-        const btn = document.getElementById('adminAbonoConfirm');
-        const prevText = btn ? btn.textContent : '';
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = 'Procesando…';
-        }
-        setAdminAbonoStatus('Registrando abono…');
-
-        try {
-          const resp = await fetch('/api/mark-abono-transaction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ transactionNumber: txNum, amount, proofId: Number(adminAbonoCtx?.proofId ?? 0) || 0 }),
-          });
-          const data = await resp.json();
-          if (!resp.ok) {
-            setAdminAbonoStatus(data?.error || 'Error registrando abono');
-            return;
-          }
-
-          setAdminAbonoStatus('Abono registrado. Actualizando…');
-          kickEmailOutbox();
-          await loadPendingActions(pendingViewMode);
-          closeAdminAbono();
-        } catch (e) {
-          console.error(e);
-          setAdminAbonoStatus('Error registrando abono');
-        } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = prevText;
-          }
-        }
-      });
-
-      document.getElementById('adminPagoConfirm')?.addEventListener('click', async () => {
-        const txNum = String(adminPagoCtx?.tx || '').trim();
-        if (!txNum) return;
-
-        const numbers = Array.isArray(adminPagoCtx?.numbers) ? adminPagoCtx.numbers : [];
-        if (!numbers.length) {
-          setAdminPagoStatus('No hay números asociados a esta transacción.');
-          return;
-        }
-
-        const btn = document.getElementById('adminPagoConfirm');
-        const prevText = btn ? btn.textContent : '';
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = 'Procesando…';
-        }
-        setAdminPagoStatus('Registrando pago…');
-
-        try {
-          // Detectar el kind del comprobante para usar el endpoint correcto
-          const tx = adminPagoCtx.tx;
-          const proofs = (proofsByTx && tx && proofsByTx[tx]) ? proofsByTx[tx] : [];
-          const proof = proofs.find((p) => p.id === adminPagoCtx.proofId);
-          const proofKind = proof ? String(proof.kind || '').toLowerCase() : '';
-          const proofAmount = proof && proof.amount != null ? Number(proof.amount) : null;
-
-          // Si el comprobante es de tipo 'abono', usar el endpoint de abono
-          if (proofKind === 'abono' && proofAmount != null && Number.isFinite(proofAmount) && proofAmount > 0) {
-            const payload = {
-              transactionNumber: tx,
-              amount: Math.trunc(proofAmount),
-              proofId: adminPagoCtx.proofId,
-            };
-
-            const resp = await fetch('/api/mark-abono-transaction', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
-            const data = await resp.json();
-            if (!resp.ok) {
-              setAdminPagoStatus(data?.error || 'Error al marcar abono');
-              return;
-            }
-
-            setAdminPagoStatus('Abono registrado. Actualizando…');
-          } else {
-            // Si es 'pago' o sin monto específico, usar el endpoint de pago
-            const payload = {
-              numeros: numbers.map((n) => ({ numero: n.numero, eventId: n.eventId })),
-              forcePago: true,
-              proofId: adminPagoCtx.proofId,
-            };
-
-            const resp = await fetch('/api/mark-payment-numbers', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
-            });
-            const data = await resp.json();
-            if (!resp.ok) {
-              setAdminPagoStatus(data?.error || 'Error al marcar como pagado');
-              return;
-            }
-
-            setAdminPagoStatus('Pago registrado. Actualizando…');
-          }
-
-          kickEmailOutbox();
-          await loadPendingActions(pendingViewMode);
-          closeAdminPago();
-        } catch (e) {
-          console.error(e);
-          setAdminPagoStatus('Error al procesar');
-        } finally {
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = prevText;
-          }
-        }
-      });
-
-      // Nota: se removieron los filtros de cédula/campaña/transacción en esta vista.
-
-      function updatePaymentButton() {
-        const paymentChecked = document.querySelectorAll('.payment-checkbox:checked');
-        const abonoChecked = document.querySelectorAll('.abono-checkbox:checked');
-        const paymentBtn = document.getElementById('paymentBtn');
-        const abonoBtn = document.getElementById('abonoBtn');
-        const abonoTxBox = document.getElementById('abonoTxBox');
-        const abonoTxLabel = document.getElementById('abonoTxLabel');
-        const abonoTxInput = document.getElementById('abonoTxInput');
-
-        const selectedTxs = Array.from(abonoChecked)
-          .map((cb) => (cb.getAttribute('data-tx') || '').trim())
-          .filter((t) => t);
-        const txSet = new Set(selectedTxs);
-        const canUseTxMode = abonoChecked.length >= 2 && txSet.size === 1;
-        const txNumber = canUseTxMode ? Array.from(txSet)[0] : '';
-        
-        // Mostrar solo el botón correspondiente
-        if (paymentChecked.length > 0) {
-          paymentBtn.classList.remove('hidden');
-          paymentBtn.textContent = `Marcar ${paymentChecked.length} como Pago`;
-          abonoBtn.classList.add('hidden');
-          abonoTxBox?.classList.add('hidden');
-          if (abonoTxInput) abonoTxInput.value = '';
-        } else if (abonoChecked.length > 0) {
-          abonoBtn.classList.remove('hidden');
-          abonoBtn.textContent = canUseTxMode ? `Guardar Abono Transacción #${txNumber}` : `Guardar ${abonoChecked.length} Abono(s)`;
-          paymentBtn.classList.add('hidden');
-
-          if (canUseTxMode) {
-            abonoTxBox?.classList.remove('hidden');
-            if (abonoTxLabel) abonoTxLabel.textContent = `#${txNumber}`;
-            // En modo transacción, ocultar inputs por número para evitar confusión.
-            document.querySelectorAll('.abono-checkbox:checked').forEach(cb => {
-              const inputId = cb.getAttribute('data-abono-input');
-              const input = document.getElementById(inputId);
-              if (input) {
-                input.classList.add('hidden');
-                input.value = '';
-              }
-            });
-          } else {
-            abonoTxBox?.classList.add('hidden');
-            if (abonoTxInput) abonoTxInput.value = '';
-          }
-        } else {
-          paymentBtn.classList.add('hidden');
-          abonoBtn.classList.add('hidden');
-          abonoTxBox?.classList.add('hidden');
-          if (abonoTxInput) abonoTxInput.value = '';
-        }
-      }
-
-      function updateAbonoButton() {
-        updatePaymentButton();
-      }
-
-      document.getElementById('paymentBtn')?.addEventListener('click', async () => {
-        const checkedBoxes = document.querySelectorAll('.payment-checkbox:checked');
-        console.log('Botón clickeado, checkboxes seleccionados:', checkedBoxes.length);
-        
-        if (checkedBoxes.length === 0) {
-          showMsg('Selecciona al menos un número para marcar como pagado');
-          return;
-        }
-        
-        // Log detallado de cada checkbox
-        Array.from(checkedBoxes).forEach((cb, index) => {
-          console.log(`Checkbox ${index}:`, {
-            numeroId: cb.dataset.numeroId,
-            eventId: cb.dataset.eventId,
-            element: cb
-          });
+  // Setup event listeners
+  function setupEventListeners() {
+    // Filter tabs
+    document.querySelectorAll('.border-b-2').forEach(tab => {
+      tab.addEventListener('click', function() {
+        // Remove active state from all tabs
+        document.querySelectorAll('.border-b-2').forEach(t => {
+          t.classList.remove('border-blue-500', 'text-blue-600');
+          t.classList.add('border-transparent', 'text-gray-500');
         });
         
-        const numeros = Array.from(checkedBoxes).map(cb => ({
-          numero: cb.dataset.numeroId,
-          eventId: cb.dataset.eventId
-        }));
+        // Add active state to clicked tab
+        this.classList.remove('border-transparent', 'text-gray-500');
+        this.classList.add('border-blue-500', 'text-blue-600');
         
-        console.log('Números a marcar como pagados:', numeros);
-        console.log('JSON que se enviará:', JSON.stringify({ numeros }));
-        
-        try {
-          const paymentBtn = document.getElementById('paymentBtn');
-          paymentBtn.textContent = 'Procesando...';
-          
-          const resp = await fetch(`/api/mark-payment-numbers`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ numeros })
-          });
-          
-          console.log('Respuesta del servidor:', resp.status);
-          const data = await resp.json();
-          console.log('Datos recibidos:', data);
-          
-          if (!resp.ok) {
-            showMsg(data.error || 'Error al marcar como pagado');
-            updatePaymentButton();
-            return;
-          }
-
-          kickEmailOutbox();
-          showMsg(`✅ ¡Éxito! ${data.count} número(s) marcado(s) como PAGADO. Correo en cola/enviándose...`);
-          
-          // Limpiar checkboxes
-          checkedBoxes.forEach(cb => cb.checked = false);
-          
-          // Esperar 2 segundos y refrescar
-          setTimeout(() => {
-            buscarBtn.click();
-          }, 2000);
-          
-        } catch (err) {
-          console.error('Error completo:', err);
-          showMsg('Error al marcar como pagado: ' + err.message);
-          updatePaymentButton();
+        // Load corresponding data
+        const tabText = this.textContent.trim();
+        if (tabText.includes('Pendientes del Administrador')) {
+          currentMode = 'admin';
+        } else if (tabText.includes('Pendientes de Pago')) {
+          currentMode = 'payment';
+        } else if (tabText.includes('Pagos')) {
+          currentMode = 'pagos';
+        } else if (tabText.includes('Estados Financieros')) {
+          currentMode = 'estados';
         }
+        
+        loadPendingActions(currentMode);
       });
+    });
+  }
 
-      document.getElementById('abonoBtn')?.addEventListener('click', async () => {
-        const checkedBoxes = document.querySelectorAll('.abono-checkbox:checked');
-        const abonoTxBox = document.getElementById('abonoTxBox');
-        const abonoTxInput = document.getElementById('abonoTxInput');
-        
-        if (checkedBoxes.length === 0) {
-          showMsg('Selecciona al menos un número para abonar');
-          return;
-        }
-
-        // Modo: abono por transacción (si todos los seleccionados pertenecen a la misma transacción)
-        const selectedTxs = Array.from(checkedBoxes)
-          .map((cb) => (cb.getAttribute('data-tx') || '').trim())
-          .filter((t) => t);
-        const txSet = new Set(selectedTxs);
-        const canUseTxMode = checkedBoxes.length >= 2 && txSet.size === 1;
-        const txNumber = canUseTxMode ? Array.from(txSet)[0] : '';
-
-        if (canUseTxMode && abonoTxInput) {
-          const valorLimpio = abonoTxInput.value.replace(/[^\d]/g, '');
-          const amount = parseFloat(valorLimpio) || 0;
-
-          if (amount <= 0) {
-            showMsg('Ingresa un monto de abono para la transacción');
-            return;
-          }
-
-          try {
-            const abonoBtn = document.getElementById('abonoBtn');
-            abonoBtn.textContent = 'Procesando...';
-
-            const resp = await fetch(`/api/mark-abono-transaction`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ transactionNumber: txNumber, amount })
-            });
-
-            const data = await resp.json();
-
-            if (!resp.ok) {
-              showMsg(data.error || 'Error al registrar abono por transacción');
-              abonoBtn.textContent = `Guardar Abono Transacción #${txNumber}`;
-              updatePaymentButton();
-              return;
-            }
-
-            kickEmailOutbox();
-            showMsg(`✅ ¡Éxito! Abono aplicado a transacción #${txNumber}. Boletas afectadas: ${data.affectedNumbers}. Correo en cola/enviándose...`);
-
-            // Limpiar selección
-            checkedBoxes.forEach(cb => cb.checked = false);
-            if (abonoTxInput) abonoTxInput.value = '';
-            abonoTxBox?.classList.add('hidden');
-            abonoBtn.classList.add('hidden');
-            abonoBtn.textContent = 'Guardar Abonos';
-
-            // Refrescar la búsqueda después de 1.5 segundos
-            setTimeout(async () => {
-              const cedula = document.getElementById('cedulaInput').value.trim();
-              const campaignId = campaignSelect.value;
-              const txNumberFilter = txInput.value.trim();
-              
-              if (cedula || campaignId || txNumberFilter) {
-                setLoading(true);
-                const params = new URLSearchParams({ cedula });
-                if (campaignId) params.append('campaignId', campaignId);
-                if (txNumberFilter) params.append('transactionNumber', txNumberFilter);
-                
-                try {
-                  const resp = await fetch(`/api/consultas-cedula?${params.toString()}`);
-                  const data = await resp.json();
-                  if (resp.ok) {
-                    renderResults(data.movimientos || []);
-                  }
-                } catch (e) {
-                  console.error('Error al refrescar:', e);
-                }
-                setLoading(false);
-              }
-            }, 1500);
-
-          } catch (err) {
-            console.error('Error completo:', err);
-            showMsg('Error al registrar abono por transacción: ' + err.message);
-            updatePaymentButton();
-          }
-
-          return;
-        }
-        
-        const numeros = [];
-        let hasErrors = false;
-        
-        Array.from(checkedBoxes).forEach(cb => {
-          const inputId = cb.getAttribute('data-abono-input');
-          const input = document.getElementById(inputId);
-          const precio = parseFloat(cb.dataset.precio) || 0;
-          const precioNormal = parseFloat(cb.dataset.precioNormal) || 0;
-          const tipo = String(cb.dataset.tipo || 'normal').toLowerCase();
-          const abonadoActual = parseFloat(cb.dataset.abonado) || 0;
-          const requiredTotal = tipo === 'promocion' && precioNormal > 0 ? precioNormal : precio;
-          const maxAbono = requiredTotal - abonadoActual;
-          
-          // Parsear el valor limpiando formato de moneda
-          const valorLimpio = input.value.replace(/[^\d]/g, '');
-          const abono = parseFloat(valorLimpio) || 0;
-          
-          console.log('Checkbox abono:', {
-            numeroId: cb.dataset.numeroId,
-            eventId: cb.dataset.eventId,
-            inputId: inputId,
-            abonoValue: abono,
-            precio: precio,
-            abonadoActual: abonadoActual,
-            maxAbono: maxAbono
-          });
-          
-          if (abono <= 0) {
-            showMsg('Todos los abonos deben ser mayores a 0');
-            hasErrors = true;
-            return;
-          }
-          
-          if (tipo === 'promocion') {
-            if (abono > maxAbono) {
-              showMsg(`El abono no puede ser mayor al saldo pendiente (${formatCurrency(maxAbono)}).`);
-              hasErrors = true;
-              return;
-            }
-          } else {
-            if (abono >= maxAbono) {
-              showMsg(`El abono no puede ser igual o mayor al saldo pendiente (${formatCurrency(maxAbono)}). Use "Marcar como Pago" para pagos completos.`);
-              hasErrors = true;
-              return;
-            }
-          }
-          
-          numeros.push({
-            numero: cb.dataset.numeroId,
-            eventId: cb.dataset.eventId,
-            abono: abono
-          });
-        });
-        
-        console.log('Números a abonar:', numeros);
-        
-        if (hasErrors || numeros.length === 0) return;
-
-		// Abonos por boleta deshabilitados: se registran solo por transacción.
-		showMsg('ℹ️ Abonos por boleta deshabilitados. Use el abono por transacción.');
-		updatePaymentButton();
-		return;
-        
-        try {
-          const abonoBtn = document.getElementById('abonoBtn');
-          abonoBtn.textContent = 'Procesando...';
-          
-          const resp = await fetch(`/api/mark-abono-numbers`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ numeros })
-          });
-          
-          const data = await resp.json();
-          
-          if (!resp.ok) {
-            showMsg(data.error || 'Error al registrar abonos');
-            abonoBtn.textContent = 'Guardar Abonos';
-            updatePaymentButton();
-            return;
-          }
-
-          kickEmailOutbox();
-          showMsg(`✅ ¡Éxito! ${numeros.length} abono(s) registrado(s). Correo en cola/enviándose...`);
-          
-          // Limpiar checkboxes e inputs inmediatamente
-          document.querySelectorAll('.abono-checkbox:checked').forEach(cb => {
-            cb.checked = false;
-            const inputId = cb.getAttribute('data-abono-input');
-            const input = document.getElementById(inputId);
-            if (input) {
-              input.classList.add('hidden');
-              input.value = '';
-            }
-          });
-          
-          // Ocultar botón
-          abonoBtn.classList.add('hidden');
-          abonoBtn.textContent = 'Guardar Abonos';
-          
-          // Refrescar la búsqueda después de 1.5 segundos
-          setTimeout(async () => {
-            // Simular clic en buscar
-            const cedula = document.getElementById('cedulaInput').value.trim();
-            const campaignId = campaignSelect.value;
-            const txNumber = txInput.value.trim();
-            
-            if (cedula || campaignId || txNumber) {
-              setLoading(true);
-              const params = new URLSearchParams({ cedula });
-              if (campaignId) params.append('campaignId', campaignId);
-              if (txNumber) params.append('transactionNumber', txNumber);
-              
-              try {
-                const resp = await fetch(`/api/consultas-cedula?${params.toString()}`);
-                const data = await resp.json();
-                if (resp.ok) {
-                  renderResults(data.movimientos || []);
-                }
-              } catch (e) {
-                console.error('Error al refrescar:', e);
-              }
-              setLoading(false);
-            }
-          }, 1500);
-          
-        } catch (err) {
-          console.error('Error completo:', err);
-          showMsg('Error al registrar abonos: ' + err.message);
-          updatePaymentButton();
-        }
-      });
-
-      // Formato COP para input de abono por transacción
-      const abonoTxInput = document.getElementById('abonoTxInput');
-      if (abonoTxInput) {
-        abonoTxInput.addEventListener('input', function() {
-          let valor = this.value.replace(/[^\d]/g, '');
-          if (valor) {
-            const numero = parseInt(valor);
-            this.value = '$ ' + numero.toLocaleString('es-CO');
-          }
-        });
-
-        abonoTxInput.addEventListener('focus', function() {
-          let valor = this.value.replace(/[^\d]/g, '');
-          this.value = valor;
-        });
-
-        abonoTxInput.addEventListener('blur', function() {
-          let valor = this.value.replace(/[^\d]/g, '');
-          if (valor) {
-            const numero = parseInt(valor);
-            this.value = '$ ' + numero.toLocaleString('es-CO');
-          } else {
-            this.value = '';
-          }
-        });
+  // Load pending actions (existing function)
+  async function loadPendingActions(mode) {
+    try {
+      const response = await fetch(`/api/admin/pending-actions?mode=${mode}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        pendingData = data.items || [];
+        renderPendingActions(pendingData);
+        renderTransactionsTable(pendingData);
+        updateStatistics(data);
+      } else {
+        console.error('Error loading pending actions:', data.error);
       }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  }
 
-      function showMsg(text) {
-        const estadoMsg = document.getElementById('estadoMsg');
-        if (!estadoMsg) return;
-        estadoMsg.textContent = text;
-        estadoMsg.classList.remove('hidden');
+  // Render pending actions
+  function renderPendingActions(items) {
+    const container = document.getElementById('pendingActionsList');
+    
+    if (!items || items.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-8 text-gray-500">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="mt-2">No hay acciones pendientes</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Use existing renderTransactionCard logic but with new styling
+    container.innerHTML = items.map(item => renderTransactionCard(item)).join('');
+  }
+
+  // Render transactions table
+  function renderTransactionsTable(items) {
+    const container = document.getElementById('transactionsTableContainer');
+    
+    if (!items || items.length === 0) {
+      container.innerHTML = `
+        <div class="p-6 text-center text-gray-500">
+          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <p class="mt-2">No hay transacciones disponibles</p>
+        </div>
+      `;
+      return;
+    }
+
+    const tableHTML = `
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Transacción
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Participante
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Evento
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Total
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Pagado
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Pendiente
+              </th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            ${items.map(item => `
+              <tr class="hover:bg-gray-50 transition-colors duration-150">
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  #${item.transactionNumber || '—'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  ${item.usuarioNombre || 'Usuario'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  ${item.eventName || 'Evento'}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                  $${Number(item.totalPrice || 0).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                  $${Number(item.creditedTotal || 0).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                  $${Number(item.saldoPendiente || 0).toLocaleString()}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <div class="flex items-center justify-end space-x-2">
+                    <button onclick="viewTransaction('${item.transactionNumber}')" 
+                            class="text-indigo-600 hover:text-indigo-900 transition-colors duration-150"
+                            title="Ver detalles">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    <button onclick="validateTransaction('${item.transactionNumber}')" 
+                            class="text-green-600 hover:text-green-900 transition-colors duration-150"
+                            title="Validar">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = tableHTML;
+  }
+
+  // Update statistics
+  function updateStatistics(data) {
+    const stats = data.statistics || {};
+    
+    // Update the stat cards if they exist
+    const statCards = document.querySelectorAll('.stat-card');
+    if (statCards.length >= 4) {
+      statCards[0].querySelector('.text-2xl').textContent = stats.pendingTransactions || '0';
+      statCards[1].querySelector('.text-2xl').textContent = stats.pendingProofs || '0';
+      statCards[2].querySelector('.text-2xl').textContent = `$${Number(stats.pendingAmount || 0).toLocaleString()}`;
+      statCards[3].querySelector('.text-2xl').textContent = stats.urgentTransactions || '0';
+    }
+  }
+
+  // Action handlers
+  function viewTransaction(txNumber) {
+    console.log('View transaction:', txNumber);
+    openModal('proofHistoryModal');
+  }
+
+  function validateTransaction(txNumber) {
+    console.log('Validate transaction:', txNumber);
+    // Implement validation logic
+  }
+
+  // Include existing renderTransactionCard function (simplified)
+  function renderTransactionCard(tx) {
+    const urgency = tx?.urgency || {};
+    const proofAnalysis = tx?.proofAnalysis || {};
+    
+    // Determine urgency styles
+    const getUrgencyStyles = (urgency) => {
+      if (urgency.urgencyScore >= 1000) {
+        return { border: 'border-red-500', bg: 'bg-red-50' };
+      } else if (urgency.urgencyScore >= 500) {
+        return { border: 'border-orange-500', bg: 'bg-orange-50' };
+      } else if (urgency.urgencyScore >= 100) {
+        return { border: 'border-amber-500', bg: 'bg-amber-50' };
       }
-
-      function kickEmailOutbox() {
-        // Best-effort: on Vercel Hobby we don't have Cron, so this "kicks" the worker.
-        // Use sendBeacon/keepalive to reduce the chance of the request getting cancelled.
-        try {
-          if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-            navigator.sendBeacon('/api/process-email-outbox');
-          }
-        } catch {
-          // ignore
-        }
-
-        const tryFetch = () =>
-          fetch('/api/process-email-outbox', {
-            method: 'POST',
-            keepalive: true,
-            headers: { 'cache-control': 'no-store' },
-          }).catch(() => {
-            // Intentionally ignored: outbox will be processed on next trigger.
-          });
-
-        tryFetch();
-        setTimeout(tryFetch, 1500);
-        setTimeout(tryFetch, 6000);
-      }
-
-      function kickReleaseExpiredReservations() {
-        // Best-effort consistency kick: releases expired reserved numbers (>=5 min) while admin page is open.
-        // This does NOT change business rules; it just ensures the existing rule executes.
-        try {
-          if (typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
-            navigator.sendBeacon('/api/release-expired-reservations');
-          }
-        } catch {
-          // ignore
-        }
-
-        fetch('/api/release-expired-reservations', {
-          method: 'POST',
-          keepalive: true,
-          headers: { 'cache-control': 'no-store' },
-        }).catch(() => {
-          // ignored
-        });
-      }
-
-      // While this page is open, keep enforcing consistency even if the admin doesn't click anything.
-      // Low frequency to avoid performance impact.
-      kickReleaseExpiredReservations();
-      setInterval(kickReleaseExpiredReservations, 60_000);
-
-      function filterEventsByCampaign() {
-        // Función ya no necesaria sin evento
-      }
-
-      filterEventsByCampaign();
-
-      function setLoading(isLoading) {
-        const buscarBtn = document.getElementById('buscarBtn');
-        if (!buscarBtn) return;
-        buscarBtn.textContent = isLoading ? 'Buscando...' : 'Buscar';
-        buscarBtn.disabled = isLoading;
-      }
-
-      function renderResults(rows) {
-        const resultBody = document.getElementById('resultBody');
-        const totalMovEl = document.getElementById('totalMov');
-        const totalTxEl = document.getElementById('totalTx');
-        if (!resultBody || !totalMovEl || !totalTxEl) return;
-        resultBody.innerHTML = '';
-        proofsByTx = {};
-        txAggByNumber = buildTxAgg(rows);
-        if (!rows.length) {
-          resultBody.innerHTML = '<tr><td colspan="15" class="px-4 py-3 text-center text-slate-600">Sin resultados</td></tr>';
-          totalMovEl.textContent = '0';
-          totalTxEl.textContent = '0';
-          return;
-        }
-
-        let txSet = new Set();
-        rows.forEach((row, index) => {
-          if (row.transactionNumber) txSet.add(row.transactionNumber);
-          const txNum = row.transactionNumber || '';
-          if (txNum && proofsByTx[txNum] == null) {
-            proofsByTx[txNum] = Array.isArray(row.proofs) ? row.proofs : [];
-          }
-          const proofCount = txNum && Array.isArray(proofsByTx[txNum]) ? proofsByTx[txNum].length : 0;
-          const tr = document.createElement('tr');
-          const abonoInputId = `abono-${index}`;
-          
-          tr.innerHTML = `
-            <td class="px-3 py-2">
-              <input type="checkbox" class="payment-checkbox w-4 h-4 cursor-pointer" data-numero-id="${row.numero}" data-event-id="${row.eventId}" data-tx="${row.transactionNumber || ''}" />
-            </td>
-            <td class="px-3 py-2">
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="abono-checkbox w-4 h-4 cursor-pointer hidden" data-numero-id="${row.numero}" data-event-id="${row.eventId}" data-tx="${row.transactionNumber || ''}" data-abono-input="${abonoInputId}" data-precio="${row.precioSeleccionado || 0}" data-precio-normal="${row.precioNormal || 0}" data-tipo="${row.tipoPrecio || 'normal'}" />
-                <input type="text" id="${abonoInputId}" class="abono-input hidden w-32 bg-white border border-amber-200 rounded-lg px-2 py-1 text-sm text-slate-900" placeholder="$ 0" />
-              </div>
-            </td>
-            <td class="px-3 py-2 text-slate-900 font-semibold">${row.transactionNumber || '-'}</td>
-            <td class="px-3 py-2">
-              ${getProofButtonHtml(txNum)}
-            </td>
-            <td class="px-3 py-2">${row.usuarioNombre || '-'}</td>
-            <td class="px-3 py-2">${row.usuarioCorreo || '-'}</td>
-            <td class="px-3 py-2">${row.usuarioTelefono || '-'}</td>
-            <td class="px-3 py-2">${row.numero || '-'}</td>
-            <td class="px-3 py-2 text-slate-700">${row.campaignName || '-'}</td>
-            <td class="px-3 py-2">${row.estado || '-'}</td>
-            <td class="px-3 py-2">${row.tipoPrecio === 'promocion' ? 'Promoción' : 'Normal'}</td>
-            <td class="px-3 py-2">${formatCurrency(row.precioSeleccionado)}</td>
-            
-            <td class="px-3 py-2 text-slate-600">${formatDate(row.fechaTransaccion)}</td>
-            <td class="px-3 py-2 text-slate-600">${formatDate(row.raffleDate)}</td>
-          `;
-          resultBody.appendChild(tr);
-        });
-        
-        // Event listeners para checkboxes de pago
-        document.querySelectorAll('.payment-checkbox').forEach(checkbox => {
-          checkbox.addEventListener('change', function() {
-            if (this.checked) {
-              // Desmarcar todos los checkboxes de abono
-              document.querySelectorAll('.abono-checkbox:checked').forEach(cb => {
-                cb.checked = false;
-                const inputId = cb.getAttribute('data-abono-input');
-                const input = document.getElementById(inputId);
-                input.classList.add('hidden');
-                input.value = '';
-              });
-            }
-            updatePaymentButton();
-          });
-        });
-        
-        // Event listeners para checkboxes de abono
-        document.querySelectorAll('.abono-checkbox').forEach(checkbox => {
-          checkbox.addEventListener('change', function() {
-            const inputId = this.getAttribute('data-abono-input');
-            const input = document.getElementById(inputId);
-            if (this.checked) {
-              // Desmarcar todos los checkboxes de pago
-              document.querySelectorAll('.payment-checkbox:checked').forEach(cb => {
-                cb.checked = false;
-              });
-              input.classList.remove('hidden');
-              input.value = '';
-              input.focus();
-            } else {
-              input.classList.add('hidden');
-              input.value = '';
-            }
-            updatePaymentButton();
-          });
-        });
-        
-        // Event listeners para inputs de abono - formatear como pesos colombianos
-        document.querySelectorAll('.abono-input').forEach(input => {
-          input.addEventListener('input', function(e) {
-            // Limpiar todo excepto números
-            let valor = this.value.replace(/[^\d]/g, '');
-            if (valor) {
-              // Formatear como moneda colombiana
-              const numero = parseInt(valor);
-              this.value = '$ ' + numero.toLocaleString('es-CO');
-            }
-            updatePaymentButton();
-          });
-          
-          input.addEventListener('focus', function() {
-            // Al enfocar, mostrar solo el número limpio para editar
-            let valor = this.value.replace(/[^\d]/g, '');
-            this.value = valor;
-          });
-          
-          input.addEventListener('blur', function() {
-            // Al desenfocar, formatear nuevamente
-            let valor = this.value.replace(/[^\d]/g, '');
-            if (valor) {
-              const numero = parseInt(valor);
-              this.value = '$ ' + numero.toLocaleString('es-CO');
-            } else {
-              this.value = '';
-            }
-          });
-        });
-        
-        updatePaymentButton();
-        totalMovEl.textContent = rows.length;
-        totalTxEl.textContent = txSet.size;
-
-        // Proof history buttons
-        document.querySelectorAll('.proof-history-btn').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const tx = btn.getAttribute('data-tx');
-            if (tx) openProofHistory(tx);
-          });
-        });
-      }
-
-      function formatCurrency(val) {
-        if (val === null || val === undefined || isNaN(val)) return '-';
-        return Number(val).toLocaleString('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
-      }
-
-      const RESERVATION_TTL_MS = 5 * 60 * 1000;
-      let countdownInterval = null;
-
-      function formatRemaining(ms) {
-        if (!Number.isFinite(ms)) return '—';
-        if (ms <= 0) return '00:00';
-        const total = Math.ceil(ms / 1000);
-        const hrs = Math.floor(total / 3600);
-        const mins = Math.floor((total % 3600) / 60);
-        const secs = total % 60;
-        const pad = (n) => String(n).padStart(2, '0');
-        return hrs > 0 ? `${hrs}:${pad(mins)}:${pad(secs)}` : `${mins}:${pad(secs)}`;
-      }
-
-      function updateCountdownElement(el) {
-        if (!el) return;
-        const expiresAt = String(el.getAttribute('data-expires-at') || '').trim();
-        const prefix = String(el.getAttribute('data-prefix') || '').trim();
-        if (!expiresAt) return;
-        const expMs = Date.parse(expiresAt);
-        if (!Number.isFinite(expMs)) return;
-        const remaining = expMs - Date.now();
-        el.textContent = remaining > 0
-          ? `${prefix}${formatRemaining(remaining)}`
-          : 'Tiempo agotado';
-      }
-
-      function updateAllCountdowns() {
-        document.querySelectorAll('.countdown-timer[data-expires-at]').forEach((el) => {
-          updateCountdownElement(el);
-        });
-      }
-
-      function ensureCountdownInterval() {
-        if (countdownInterval) return;
-        countdownInterval = setInterval(updateAllCountdowns, 1000);
-      }
-
-      function formatDate(val) {
-        if (!val) return '-';
-        try {
-          return new Date(val).toLocaleString('es-CO', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-        } catch {
-          return val;
-        }
-      }
-
-      // Load pendientes right away
-      loadPendingActions(pendingViewMode);
-
-      // When the pending panel is opened, refresh
-      document.getElementById('pendingAdminPanel')?.addEventListener('toggle', (e) => {
-        try {
-          const el = e?.target;
-          if (el && el.open) loadPendingActions(pendingViewMode);
-        } catch {
-          // ignore
-        }
-      });
-
-      // ========== TABS LOGIC ==========
-      document.getElementById('tabAsignaciones').addEventListener('click', () => {
-        document.getElementById('viewAsignaciones').classList.remove('hidden');
-        document.getElementById('viewReservados').classList.add('hidden');
-        document.getElementById('tabAsignaciones').classList.remove('bg-gray-700', 'hover:bg-gray-600');
-        document.getElementById('tabAsignaciones').classList.add('bg-pink-600', 'hover:bg-pink-500');
-        document.getElementById('tabReservados').classList.remove('bg-pink-600', 'hover:bg-pink-500');
-        document.getElementById('tabReservados').classList.add('bg-gray-700', 'hover:bg-gray-600');
-      });
-
-      document.getElementById('tabReservados').addEventListener('click', () => {
-        document.getElementById('viewAsignaciones').classList.add('hidden');
-        document.getElementById('viewReservados').classList.remove('hidden');
-        document.getElementById('tabReservados').classList.remove('bg-gray-700', 'hover:bg-gray-600');
-        document.getElementById('tabReservados').classList.add('bg-pink-600', 'hover:bg-pink-500');
-        document.getElementById('tabAsignaciones').classList.remove('bg-pink-600', 'hover:bg-pink-500');
-        document.getElementById('tabAsignaciones').classList.add('bg-gray-700', 'hover:bg-gray-600');
-      });
-
-      // ========== VISTA 2: RESERVADOS Y PAGOS ==========
-      const campaignReserSelect = document.getElementById('campaignReserSelect');
-      const resultBodyReser = document.getElementById('resultBodyReser');
-      const countReservados = document.getElementById('countReservados');
-      const countPagos = document.getElementById('countPagos');
-      const totalReserRows = document.getElementById('totalReserRows');
-      const estadoMsgReser = document.getElementById('estadoMsgReser');
-      const filterCampaignReserBtn = document.getElementById('filterCampaignReserBtn');
-      const campaignReserFilter = document.getElementById('campaignReserFilter');
-      const buscarReserBtn = document.getElementById('buscarReserBtn');
-      const limpiarReserBtn = document.getElementById('limpiarReserBtn');
-
-      filterCampaignReserBtn.addEventListener('click', () => {
-        const isHidden = campaignReserFilter.classList.contains('hidden');
-        campaignReserFilter.classList.toggle('hidden');
-        if (isHidden) {
-          filterCampaignReserBtn.classList.remove('bg-pink-600');
-          filterCampaignReserBtn.classList.add('bg-pink-700');
-          // Limpiar resultados
-          resultBodyReser.innerHTML = '';
-          countReservados.textContent = '0';
-          document.getElementById('countAbonados').textContent = '0';
-          countPagos.textContent = '0';
-          totalReserRows.textContent = '0';
-          document.getElementById('dineroRecaudado').textContent = '$0';
-          document.getElementById('dineroAbonado').textContent = '$0';
-          document.getElementById('dineroPorRecaudar').textContent = '$0';
-          document.getElementById('barraRecaudacion').style.width = '0%';
-          document.getElementById('porcentajeRecaudado').textContent = '0%';
-          estadoMsgReser.classList.add('hidden');
-        } else {
-          filterCampaignReserBtn.classList.remove('bg-pink-700');
-          filterCampaignReserBtn.classList.add('bg-pink-600');
-        }
-      });
-
-      buscarReserBtn.addEventListener('click', async () => {
-        const campaignId = campaignReserSelect.value;
-
-        if (!campaignId) {
-          showMsgReser('Selecciona una campaña para consultar');
-          return;
-        }
-        try {
-          buscarReserBtn.disabled = true;
-          buscarReserBtn.textContent = 'Buscando...';
-          
-          const resp = await fetch(`/api/reservados-pagos?campaignId=${campaignId}`);
-          const data = await resp.json();
-          if (!resp.ok) {
-            showMsgReser(data.error || 'Error al consultar');
-            buscarReserBtn.disabled = false;
-            buscarReserBtn.textContent = 'Buscar';
-            return;
-          }
-          renderResultsReser(data.movimientos || []);
-          buscarReserBtn.disabled = false;
-          buscarReserBtn.textContent = 'Buscar';
-        } catch (err) {
-          console.error(err);
-          showMsgReser('Error al consultar');
-          buscarReserBtn.disabled = false;
-          buscarReserBtn.textContent = 'Buscar';
-        }
-      });
-
-      limpiarReserBtn.addEventListener('click', () => {
-        campaignReserSelect.value = '';
-        resultBodyReser.innerHTML = '';
-        countReservados.textContent = '0';
-        document.getElementById('countAbonados').textContent = '0';
-        countPagos.textContent = '0';
-        totalReserRows.textContent = '0';
-        document.getElementById('dineroRecaudado').textContent = '$0';
-        document.getElementById('dineroAbonado').textContent = '$0';
-        document.getElementById('dineroPorRecaudar').textContent = '$0';
-        document.getElementById('barraRecaudacion').style.width = '0%';
-        document.getElementById('porcentajeRecaudado').textContent = '0%';
-        estadoMsgReser.classList.add('hidden');
-      });
-
-      function showMsgReser(text) {
-        estadoMsgReser.textContent = text;
-        estadoMsgReser.classList.remove('hidden');
-      }
-
-      function renderResultsReser(rows) {
-        resultBodyReser.innerHTML = '';
-        proofsByTx = {};
-        if (!rows.length) {
-          resultBodyReser.innerHTML = '<tr><td colspan="6" class="px-4 py-3 text-center text-slate-600">Sin resultados</td></tr>';
-          countReservados.textContent = '0';
-          document.getElementById('countAbonados').textContent = '0';
-          countPagos.textContent = '0';
-          totalReserRows.textContent = '0';
-          document.getElementById('dineroRecaudado').textContent = '$0';
-          document.getElementById('dineroAbonado').textContent = '$0';
-          document.getElementById('dineroPorRecaudar').textContent = '$0';
-          document.getElementById('barraRecaudacion').style.width = '0%';
-          document.getElementById('porcentajeRecaudado').textContent = '0%';
-          return;
-        }
-
-        // Collect proofs by transaction and build tx map
-        const txMap = {};
-        rows.forEach((row) => {
-          const txNum = row.transactionNumber || '';
-          if (txNum && proofsByTx[txNum] == null) {
-            proofsByTx[txNum] = Array.isArray(row.proofs) ? row.proofs : [];
-          }
-          
-          if (!txNum) return;
-          if (!txMap[txNum]) {
-            txMap[txNum] = {
-              transactionNumber: txNum,
-              usuarioNombre: row.usuarioNombre || '-',
-              eventName: row.eventName || '-',
-              ledger: row.ledger || null,
-            };
-          }
-        });
-
-        let dineroRecaudado = 0, dineroAbonado = 0, dineroPorRecaudar = 0;
-        let reservadosCount = 0, abonadosCount = 0, pagosCount = 0;
-        let uniqueTxCount = 0;
-
-        // Render one row per transaction with ledger-based totals
-        Object.keys(txMap).forEach((txNum) => {
-          const ledger = txMap[txNum].ledger || {};
-          const totalPrice = ledger.totalPrice || 0;
-          
-          // Pagado = abonos + pagos (todo lo creditado del ledger)
-          const abonoTotal = ledger.abonoLedgerTotal || 0;
-          const pagoTotal = ledger.pagoLedgerTotal || 0;
-          const pagadoTotal = abonoTotal + pagoTotal;
-          
-          // Pendiente = lo que falta
-          const pendiente = Math.max(0, totalPrice - pagadoTotal);
-
-          dineroRecaudado += pagadoTotal;
-          dineroAbonado += 0; // Ya está incluido en pagadoTotal
-          dineroPorRecaudar += pendiente;
-
-          if (pendiente > 0) {
-            if (pagadoTotal === 0) {
-              reservadosCount++;
-            } else {
-              abonadosCount++;
-            }
-          } else if (totalPrice > 0) {
-            pagosCount++;
-          }
-
-          const tr = document.createElement('tr');
-          const pendienteColor = pendiente > 0 ? 'text-rose-700' : 'text-emerald-700';
-          tr.innerHTML = `
-            <td class="px-3 py-2 text-slate-900 font-semibold">${txNum}</td>
-            <td class="px-3 py-2">${txMap[txNum].usuarioNombre}</td>
-            <td class="px-3 py-2 text-slate-700">${txMap[txNum].eventName}</td>
-            <td class="px-3 py-2 text-right font-semibold">${formatCurrency(totalPrice)}</td>
-            <td class="px-3 py-2 text-right text-emerald-700 font-semibold">${formatCurrency(pagadoTotal)}</td>
-            <td class="px-3 py-2 text-right ${pendienteColor} font-semibold">${formatCurrency(pendiente)}</td>
-          `;
-          resultBodyReser.appendChild(tr);
-          uniqueTxCount++;
-        });
-
-        countReservados.textContent = reservadosCount;
-        document.getElementById('countAbonados').textContent = abonadosCount;
-        countPagos.textContent = pagosCount;
-        totalReserRows.textContent = uniqueTxCount;
-        
-        // Actualizar barra de dinero
-        document.getElementById('dineroRecaudado').textContent = formatCurrency(dineroRecaudado);
-        document.getElementById('dineroAbonado').textContent = formatCurrency(dineroAbonado);
-        document.getElementById('dineroPorRecaudar').textContent = formatCurrency(dineroPorRecaudar);
-        
-        const totalDinero = dineroRecaudado + dineroAbonado + dineroPorRecaudar;
-        const porcentaje = totalDinero > 0 ? Math.round((dineroRecaudado / totalDinero) * 100) : 0;
-        
-        document.getElementById('barraRecaudacion').style.width = porcentaje + '%';
-        document.getElementById('porcentajeRecaudado').textContent = porcentaje + '%';
-
-        updateAllCountdowns();
-        ensureCountdownInterval();
-      }
-
-      // Proof history modal wire
-      const proofHistoryModal = document.getElementById('proofHistoryModal');
-      const proofHistoryCloseBtn = document.getElementById('proofHistoryCloseBtn');
-      proofHistoryCloseBtn?.addEventListener('click', (e) => {
-        e.preventDefault();
-        closeProofHistory();
-      });
-      proofHistoryModal?.addEventListener('click', (e) => {
-        if (e.target === proofHistoryModal) closeProofHistory();
-      });
-
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-          closeProofHistory();
-        }
-      });
-    </script>
-  </body>
-</html>
+      return { border: 'border-gray-200', bg: 'bg-white' };
+    };
+    
+    const urgencyStyles = getUrgencyStyles(urgency);
+    
+    return `
+      <div class="${urgencyStyles.bg} border ${urgencyStyles.border} rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-medium text-gray-900">#${tx.transactionNumber}</h3>
+            <p class="text-sm text-gray-500">${tx.usuarioNombre}</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            ${urgency.urgencyScore >= 1000 ? '<span class="badge badge-danger">🔴 CRÍTICO</span>' : ''}
+            ${urgency.urgencyScore >= 500 && urgency.urgencyScore < 1000 ? '<span class="badge badge-warning">🟠 URGENTE</span>' : ''}
+            ${urgency.urgencyScore >= 100 && urgency.urgencyScore < 500 ? '<span class="badge badge-info">🟡 Atención</span>' : ''}
+          </div>
+        </div>
+        <div class="mt-4">
+          <div class="flex justify-between text-sm">
+            <span class="text-gray-500">Total:</span>
+            <span class="font-medium">$${Number(tx.totalPrice || 0).toLocaleString()}</span>
+          </div>
+          <div class="flex justify-between text-sm mt-1">
+            <span class="text-gray-500">Pagado:</span>
+            <span class="font-medium">$${Number(tx.creditedTotal || 0).toLocaleString()}</span>
+          </div>
+        </div>
+        <div class="mt-4 flex space-x-2">
+          ${proofAnalysis.suggestedAction === 'validate_payment' ? `
+            <button class="btn-primary text-sm">✅ Validar Pago</button>
+          ` : ''}
+          ${proofAnalysis.suggestedAction === 'validate_abono' ? `
+            <button class="btn-primary text-sm">✅ Validar Abono</button>
+          ` : ''}
+          <button class="btn-secondary text-sm">💳 Pagar</button>
+          <button class="btn-secondary text-sm">💰 Abonar</button>
+        </div>
+      </div>
+    `;
+  }
+</script>

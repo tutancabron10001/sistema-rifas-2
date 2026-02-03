@@ -1,0 +1,330 @@
+---
+import "../../../styles/global.css";
+
+// Verificar autenticación
+if (!Astro.cookies.has("admin_session")) {
+  return Astro.redirect("/admin/login");
+}
+
+interface Props {
+  title: string;
+  currentPage?: string;
+}
+
+const { title, currentPage = "dashboard" } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} — Administración</title>
+    <meta name="description" content="Panel de administración del sistema de rifas" />
+    
+    <!-- Flowbite CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.css" rel="stylesheet" />
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Custom styles -->
+    <style>
+      :root {
+        --primary-color: 59, 130, 246; /* blue-500 */
+        --secondary-color: 239, 68, 68; /* rose-500 */
+      }
+      
+      .bg-primary {
+        background-color: rgb(var(--primary-color));
+      }
+      
+      .bg-secondary {
+        background-color: rgb(var(--secondary-color));
+      }
+      
+      .text-primary {
+        color: rgb(var(--primary-color));
+      }
+      
+      .text-secondary {
+        color: rgb(var(--secondary-color));
+      }
+      
+      .border-primary {
+        border-color: rgb(var(--primary-color));
+      }
+      
+      .hover\:bg-primary:hover {
+        background-color: rgb(var(--primary-color));
+      }
+      
+      .hover\:text-primary:hover {
+        color: rgb(var(--primary-color));
+      }
+      
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 3px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+      
+      /* Animations */
+      @keyframes slideIn {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+      
+      .slide-in {
+        animation: slideIn 0.3s ease-out;
+      }
+      
+      /* Sidebar transitions */
+      .sidebar-transition {
+        transition: all 0.3s ease-in-out;
+      }
+      
+      /* Hover effects */
+      .nav-item {
+        @apply flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200;
+      }
+      
+      .nav-item:hover {
+        @apply bg-gray-100 text-gray-900;
+      }
+      
+      .nav-item.active {
+        @apply bg-primary text-white;
+      }
+      
+      /* Card hover effects */
+      .stat-card {
+        @apply bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200;
+      }
+      
+      /* Table styles */
+      .data-table {
+        @apply bg-white rounded-lg shadow overflow-hidden;
+      }
+      
+      .data-table th {
+        @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50;
+      }
+      
+      .data-table td {
+        @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+      }
+      
+      .data-table tr:hover {
+        @apply bg-gray-50;
+      }
+      
+      /* Button styles */
+      .btn-primary {
+        @apply bg-primary text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 font-medium;
+      }
+      
+      .btn-secondary {
+        @apply bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors duration-200 font-medium;
+      }
+      
+      /* Modal styles */
+      .modal-backdrop {
+        @apply fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50;
+      }
+      
+      .modal-content {
+        @apply relative top-20 mx-auto p-5 border shadow-lg rounded-md bg-white max-w-4xl w-full mx-4;
+      }
+      
+      /* Badge styles */
+      .badge {
+        @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+      }
+      
+      .badge-success {
+        @apply bg-green-100 text-green-800;
+      }
+      
+      .badge-warning {
+        @apply bg-yellow-100 text-yellow-800;
+      }
+      
+      .badge-danger {
+        @apply bg-red-100 text-red-800;
+      }
+      
+      .badge-info {
+        @apply bg-blue-100 text-blue-800;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 font-sans antialiased">
+    <div x-data="{ sidebarOpen: false }" class="h-screen flex overflow-hidden">
+      
+      <!-- Sidebar -->
+      <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" 
+             class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform sidebar-transition lg:translate-x-0 lg:static lg:inset-0">
+        <div class="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <h1 class="text-xl font-bold text-primary">🎫 Sistema Rifas</h1>
+            </div>
+          </div>
+          <button @click="sidebarOpen = false" class="lg:hidden">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <nav class="mt-6 px-3">
+          <div class="space-y-1">
+            <a href="/admin" 
+               class="nav-item ${currentPage === 'dashboard' ? 'active' : 'text-gray-600 hover:text-gray-900'}">
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+              Dashboard
+            </a>
+            
+            <a href="/admin/consultas" 
+               class="nav-item ${currentPage === 'consultas' ? 'active' : 'text-gray-600 hover:text-gray-900'}">
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              📋 Consultas
+            </a>
+            
+            <a href="/admin/campanas" 
+               class="nav-item ${currentPage === 'campanas' ? 'active' : 'text-gray-600 hover:text-gray-900'}">
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              🎫 Rifas
+            </a>
+            
+            <a href="/admin/usuarios" 
+               class="nav-item ${currentPage === 'usuarios' ? 'active' : 'text-gray-600 hover:text-gray-900'}">
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              👥 Usuarios
+            </a>
+            
+            <a href="/admin/reportes" 
+               class="nav-item ${currentPage === 'reportes' ? 'active' : 'text-gray-600 hover:text-gray-900'}">
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              📊 Reportes
+            </a>
+            
+            <a href="/admin/configuracion" 
+               class="nav-item ${currentPage === 'configuracion' ? 'active' : 'text-gray-600 hover:text-gray-900'}">
+              <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              ⚙️ Configuración
+            </a>
+          </div>
+        </nav>
+      </aside>
+
+      <!-- Main content -->
+      <div class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Top header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+          <div class="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+            <div class="flex items-center">
+              <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              
+              <!-- Search bar -->
+              <div class="ml-4 flex-1 max-w-lg">
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input type="text" 
+                         placeholder="Buscar transacciones, usuarios..." 
+                         class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+              </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+              <!-- Notifications -->
+              <button class="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white"></span>
+              </button>
+              
+              <!-- User menu -->
+              <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open" class="flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                  <div class="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white font-medium">
+                    A
+                  </div>
+                </button>
+                
+                <div x-show="open" 
+                     @click.away="open = false"
+                     x-transition:enter="transition ease-out duration-100"
+                     x-transition:enter-start="transform opacity-0 scale-95"
+                     x-transition:enter-end="transform opacity-100 scale-100"
+                     x-transition:leave="transition ease-in duration-75"
+                     x-transition:leave-start="transform opacity-100 scale-100"
+                     x-transition:leave-end="transform opacity-0 scale-95"
+                     class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-gray-100 focus:outline-none">
+                  <div class="py-1">
+                    <a href="/admin/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Mi Perfil</a>
+                    <a href="/admin/settings" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Configuración</a>
+                  </div>
+                  <div class="py-1">
+                    <a href="/admin/logout" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Cerrar Sesión</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Page content -->
+        <main class="flex-1 overflow-y-auto">
+          <slot />
+        </main>
+      </div>
+    </div>
+
+    <!-- Flowbite JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
+  </body>
+</html>
