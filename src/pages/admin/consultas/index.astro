@@ -296,14 +296,15 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
       const data = await response.json();
       console.log('📊 API Response:', data);
       
-      if (data.success) {
+      // Handle the actual API response format (summary/items, not success/statistics)
+      if (response.ok && data) {
         pendingData = data.items || [];
         console.log('✅ Data loaded successfully:', pendingData.length, 'items');
         renderPendingActions(pendingData);
         renderTransactionsTable(pendingData);
         updateStatistics(data);
       } else {
-        console.error('❌ Error loading pending actions:', data.error);
+        console.error('❌ Error loading pending actions:', data.error || 'Unknown error');
         // Show error message to user
         const container = document.getElementById('pendingActionsList');
         if (container) {
@@ -450,15 +451,15 @@ const currentPage = mode === 'admin' ? 'consultas-admin' :
 
   // Update statistics
   function updateStatistics(data) {
-    const stats = data.statistics || {};
+    const summary = data.summary || {};
     
     // Update the stat cards if they exist
     const statCards = document.querySelectorAll('.stat-card');
     if (statCards.length >= 4) {
-      statCards[0].querySelector('.text-2xl').textContent = stats.pendingTransactions || '0';
-      statCards[1].querySelector('.text-2xl').textContent = stats.pendingProofs || '0';
-      statCards[2].querySelector('.text-2xl').textContent = `$${Number(stats.pendingAmount || 0).toLocaleString()}`;
-      statCards[3].querySelector('.text-2xl').textContent = stats.urgentTransactions || '0';
+      statCards[0].querySelector('.text-2xl').textContent = summary.transactionsPending || '0';
+      statCards[1].querySelector('.text-2xl').textContent = summary.proofsPending || '0';
+      statCards[2].querySelector('.text-2xl').textContent = `$${Number(summary.pendingAmountTotal || 0).toLocaleString()}`;
+      statCards[3].querySelector('.text-2xl').textContent = summary.transactionsUnpaid || '0';
     }
   }
 
