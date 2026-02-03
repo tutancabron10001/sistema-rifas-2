@@ -167,6 +167,39 @@ npm run drizzle:migrate  # Aplicar migraciones
 
 ---
 
+## 📈 Pruebas de carga (Vercel + Turso)
+
+Hay un script k6 listo para simular el flujo de **/usuario/eventos** y sus endpoints principales.
+
+Archivo: [scripts/k6-eventos.js](scripts/k6-eventos.js)
+
+### Requisitos
+- Instalar k6: https://k6.io/docs/get-started/installation/
+
+### Modo seguro (solo lectura) — recomendado en producción
+```powershell
+k6 run -e BASE_URL=https://sistema-rifas-2.vercel.app -e EVENT_ID=1 -e NUM_WIDTH=3 -e NUM_MIN=0 -e NUM_MAX=999 .\scripts\k6-eventos.js
+```
+
+Tip: si crees que Vercel/CDN está cacheando respuestas y quieres forzar hits reales, agrega `-e BUST_CACHE=1`.
+
+### Modo escritura (reserva) — SOLO con evento de prueba
+Este modo hace `POST /api/reservar-numeros` (reserva) y **escribe en Turso**.
+
+- Usa **solo un EVENTO de PRUEBA** en producción.
+- El request manda `x-load-test: 1` para que el backend **no encole correos**.
+
+```powershell
+k6 run -e BASE_URL=https://sistema-rifas-2.vercel.app -e EVENT_ID=999 -e WRITE_MODE=1 -e NUM_WIDTH=3 -e NUM_MIN=0 -e NUM_MAX=999 .\scripts\k6-eventos.js
+```
+
+### Switch para desactivar el envío de correos (opcional)
+Puedes desactivar globalmente la cola/procesamiento de correos con:
+- `DISABLE_EMAIL_OUTBOX=1`
+
+
+---
+
 ## 🗄️ Migrar Datos de SQLite Local a Turso
 
 ```powershell

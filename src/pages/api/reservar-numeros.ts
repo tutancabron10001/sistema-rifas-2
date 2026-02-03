@@ -55,6 +55,10 @@ function computeAdjustedUnitForGraceCompletion(opts: {
 
 export async function POST({ request }: any) {
   try {
+    const disableEmailOutbox =
+      String(import.meta.env.DISABLE_EMAIL_OUTBOX || process.env.DISABLE_EMAIL_OUTBOX || '') === '1' ||
+      String(request.headers.get('x-load-test') || '') === '1';
+
     const contentType = String(request.headers.get('content-type') || '');
     let body: any;
     let proofKind: 'pago' | 'abono' | null = null;
@@ -916,7 +920,7 @@ export async function POST({ request }: any) {
     }
 
     // Encolar correo (async, desacoplado del request)
-    if (usuario.length > 0 && evento.length > 0 && campaignInfo.length > 0 && usuario[0].correoElectronico) {
+    if (!disableEmailOutbox && usuario.length > 0 && evento.length > 0 && campaignInfo.length > 0 && usuario[0].correoElectronico) {
       const fechaReserva = new Date().toLocaleString('es-CO', {
         timeZone: 'America/Bogota',
         day: 'numeric',

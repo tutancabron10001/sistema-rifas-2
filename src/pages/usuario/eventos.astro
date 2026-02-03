@@ -282,10 +282,10 @@ try {
     )}
 
     <!-- Participants Modal -->
-    <div id="participantsModal" class="hidden fixed inset-0 app-overlay z-50 flex items-center justify-center p-2 md:p-4">
-      <div class="app-modal w-full max-w-[96vw] max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
+    <div id="participantsModal" class="hidden fixed inset-0 app-overlay z-50 flex items-center justify-center p-1 md:p-2">
+      <div class="app-modal w-full max-w-[99vw] max-h-[98vh] overflow-y-auto">
         <!-- Modal Header -->
-        <div class="sticky top-0 bg-rose-50 px-4 md:px-8 py-3 md:py-4 flex items-center justify-between border-b border-rose-200">
+        <div class="sticky top-0 bg-rose-50 px-2 md:px-4 py-2 md:py-3 flex items-center justify-between border-b border-rose-200">
           <div>
             <h2 class="text-lg md:text-2xl font-black text-slate-900">Participar en Evento</h2>
             <p id="modalEventTitle" class="text-slate-600 text-xs md:text-sm mt-1"></p>
@@ -294,7 +294,7 @@ try {
         </div>
 
         <!-- Modal Body -->
-        <div class="px-4 md:px-8 py-4 md:py-6 space-y-4 md:space-y-6">
+        <div class="px-2 md:px-4 py-2 md:py-3 space-y-3 md:space-y-4">
           <!-- Step 1: Cédula -->
           <div id="cedulaStep" class="space-y-4">
             <div>
@@ -581,7 +581,7 @@ try {
                       </button>
                     </div>
                   </div>
-                  <div id="numbersGrid" class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-12 gap-1 max-h-[400px] md:max-h-[500px] overflow-y-auto p-2 md:p-3 bg-white/70 border border-slate-200 rounded-lg">
+                  <div id="numbersGrid" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-15 xl:grid-cols-20 gap-1 max-h-[60vh] md:max-h-[70vh] overflow-y-auto p-2 md:p-3 bg-white/70 border border-slate-200 rounded-lg">
                     <!-- Numbers will be populated here -->
                   </div>
                 </div>
@@ -591,7 +591,7 @@ try {
               <!-- RIGHT: summary (desktop inline) + mobile bottom sheet -->
               <div class="min-w-0">
                 <div id="selectedNumbersSection" style="display: none;" class="fixed inset-0 z-[9999] bg-slate-900/25 backdrop-blur-sm flex items-end justify-center md:static md:z-0 md:bg-transparent md:backdrop-blur-none md:block">
-                  <div class="modal-content w-full max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-xl p-4 rounded-t-3xl border-t border-slate-200 shadow-2xl shadow-rose-500/10 md:rounded-3xl md:border md:border-slate-200 md:max-h-[calc(90vh-6rem)] md:sticky md:top-6">
+                  <div class="modal-content w-full max-h-[95vh] overflow-y-auto bg-white/95 backdrop-blur-xl p-4 rounded-t-3xl border-t border-slate-200 shadow-2xl shadow-rose-500/10 md:rounded-3xl md:border md:border-slate-200 md:min-h-[85vh] md:max-h-[95vh] md:sticky md:top-2">
                     <div class="flex items-center justify-between mb-3 md:mb-4">
                       <p id="summaryTitle" class="text-slate-900 font-black text-lg md:text-2xl">💰 Resumen de Compra</p>
                       <button id="summaryCloseBtn" type="button" class="text-rose-600 hover:text-rose-700 transition-colors">
@@ -3521,17 +3521,17 @@ try {
           if (isOcupado) {
             // Si se ocupó después del fetch, no permitir seleccionar
             button.textContent = formattedNum;
-            button.className = 'bg-slate-100 border border-slate-200 text-slate-400 font-bold py-2 rounded cursor-not-allowed opacity-80';
+            button.className = 'bg-slate-100 border border-slate-200 text-slate-400 font-bold py-2.5 md:py-3 rounded cursor-not-allowed opacity-80 text-xs md:text-sm';
             button.disabled = true;
           } else if (selectedNumbers.includes(formattedNum)) {
             // Número seleccionado por el usuario
             button.textContent = formattedNum;
-            button.className = 'bg-amber-100 border border-amber-200 text-amber-900 font-extrabold py-2 rounded transition-colors ring-2 ring-amber-200';
+            button.className = 'bg-amber-100 border border-amber-200 text-amber-900 font-extrabold py-2.5 md:py-3 rounded transition-colors ring-2 ring-amber-200 text-xs md:text-sm';
             button.onclick = () => toggleNumber(formattedNum);
           } else {
             // Número disponible
             button.textContent = formattedNum;
-            button.className = 'bg-rose-100 border border-rose-200 text-rose-900 font-extrabold py-2 rounded transition-colors hover:bg-rose-200 active:bg-rose-300';
+            button.className = 'bg-rose-100 border border-rose-200 text-rose-900 font-extrabold py-2.5 md:py-3 rounded transition-colors hover:bg-rose-200 active:bg-rose-300 text-xs md:text-sm';
             button.onclick = () => toggleNumber(formattedNum);
           }
           

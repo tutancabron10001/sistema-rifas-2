@@ -71,6 +71,108 @@ function computePendingProofs(proofs: any[], creditedTotal: number, totalPrice: 
 	return { total, validated, pending: Math.max(0, total - validated), pendingAmount };
 }
 
+// Nueva función para analizar proofs y determinar acción sugerida (preserva lógica existente)
+function analyzeProofsForAction(proofs: any[], creditedTotal: number, totalPrice: number) {
+	const considered = Array.isArray(proofs)
+		? proofs.filter((p) => String(p?.status || 'pending').toLowerCase() !== 'rejected')
+		: [];
+
+	const pendingPayments = considered.filter(p => String(p?.kind || '').toLowerCase() === 'pago' && String(p?.status || 'pending').toLowerCase() === 'pending');
+	const pendingAbonos = considered.filter(p => String(p?.kind || '').toLowerCase() === 'abono' && String(p?.status || 'pending').toLowerCase() === 'pending');
+	const validatedPayments = considered.filter(p => String(p?.kind || '').toLowerCase() === 'pago' && String(p?.status || 'pending').toLowerCase() === 'validated');
+	const validatedAbonos = considered.filter(p => String(p?.kind || '').toLowerCase() === 'abono' && String(p?.status || 'pending').toLowerCase() === 'validated');
+	
+	const hasPendingPayments = pendingPayments.length > 0;
+	const hasPendingAbonos = pendingAbonos.length > 0;
+	const needsFullPayment = creditedTotal < totalPrice;
+	
+	let suggestedAction = 'complete';
+	if (hasPendingPayments) {
+		suggestedAction = 'validate_payment';
+	} else if (hasPendingAbonos) {
+		suggestedAction = 'validate_abono';
+	} else if (needsFullPayment) {
+		suggestedAction = 'register_payment';
+	}
+	
+	return {
+		hasPendingPayments,
+		hasPendingAbonos,
+		needsFullPayment,
+		suggestedAction,
+		pendingPaymentsCount: pendingPayments.length,
+		pendingAbonosCount: pendingAbonos.length,
+		validatedPaymentsCount: validatedPayments.length,
+		validatedAbonosCount: validatedAbonos.length
+	};
+}
+
+// Nueva función para calcular urgencia sin afectar lógica existente
+function calculateUrgency(item: any) {
+	const now = Date.now();
+	let urgencyScore = 0;
+	let urgencyReason = '';
+	let timeToExpiry: number | null = null;
+	const RESERVATION_TTL_MS = 5 * 60 * 1000; // 5 minutos como en el frontend
+	
+	// 1. Reservas próximas a expirar (máxima prioridad)
+	if (item.numbers?.some((n: any) => String(n?.estado || '').toLowerCase() === 'reservado' && n?.reservedAt)) {
+		const reserveExpiryTimes = item.numbers
+			.filter((n: any) => String(n?.estado || '').toLowerCase() === 'reservado' && n?.reservedAt)
+			.map((n: any) => Date.parse(String(n.reservedAt)) + RESERVATION_TTL_MS);
+		
+		if (reserveExpiryTimes.length > 0) {
+			const minReserveExp = Math.min(...reserveExpiryTimes);
+			const timeToReserveExpiry = minReserveExp - now;
+			
+			if (timeToReserveExpiry < 30 * 60 * 1000) { // < 30 min
+				urgencyScore += 1000;
+				urgencyReason = 'reserva_critica';
+				timeToExpiry = timeToReserveExpiry;
+			} else if (timeToReserveExpiry < 2 * 60 * 60 * 1000) { // < 2 horas
+				urgencyScore += 500;
+				urgencyReason = 'reserva_urgente';
+				timeToExpiry = timeToReserveExpiry;
+			}
+		}
+	}
+	
+	// 2. Ventana de gracia promoción (alta prioridad)
+	if (item.promo?.active && item.promo?.expiresAt) {
+		const promoExpiryTime = Date.parse(String(item.promo.expiresAt));
+		const timeToPromoExpiry = promoExpiryTime - now;
+		
+		if (timeToPromoExpiry < 60 * 60 * 1000) { // < 1 hora
+			urgencyScore += 300;
+			urgencyReason = urgencyScore >= 1000 ? 'reserva_critica_promo' : 'promo_critica';
+			if (!timeToExpiry || timeToPromoExpiry < timeToExpiry) {
+				timeToExpiry = timeToPromoExpiry;
+			}
+		} else if (timeToPromoExpiry < 6 * 60 * 60 * 1000) { // < 6 horas
+			urgencyScore += 150;
+			urgencyReason = urgencyScore >= 500 ? 'reserva_urgente_promo' : 'promo_urgente';
+			if (!timeToExpiry || timeToPromoExpiry < timeToExpiry) {
+				timeToExpiry = timeToPromoExpiry;
+			}
+		}
+	}
+	
+	// 3. Antigüedad de comprobantes pendientes (media prioridad)
+	const oldestPendingProof = item.proofs
+		?.filter((p: any) => String(p?.status || 'pending').toLowerCase() === 'pending')
+		?.sort((a: any, b: any) => Date.parse(String(a.createdAt)) - Date.parse(String(b.createdAt)))?.[0];
+		
+	if (oldestPendingProof) {
+		const hoursPending = (now - Date.parse(String(oldestPendingProof.createdAt))) / (1000 * 60 * 60);
+		if (hoursPending > 48) {
+			urgencyScore += 100;
+			urgencyReason = urgencyReason ? urgencyReason + '_antiguo' : 'comprobante_antiguo';
+		}
+	}
+	
+	return { urgencyScore, urgencyReason, timeToExpiry };
+}
+
 export const GET: APIRoute = async ({ request }) => {
 	try {
 		if (!isAdminRequest(request)) {
@@ -357,6 +459,9 @@ export const GET: APIRoute = async ({ request }) => {
 				(computePendingProofs as any)._totalAbonado = totalAbonado;
 				(computePendingProofs as any)._paidCount = paidCount;
 				const p = computePendingProofs(txProofs, creditedTotal, totalPrice);
+				
+				// Nueva funcionalidad: análisis de proofs para acción sugerida (sin afectar lógica existente)
+				const proofAnalysis = analyzeProofsForAction(txProofs, creditedTotal, totalPrice);
 
 				// Resumen para modo admin (pendientes por validar)
 				if (p.pending > 0) {
@@ -395,6 +500,37 @@ export const GET: APIRoute = async ({ request }) => {
 					saldoPendiente,
 					proofs: txProofs,
 					proofStats: p,
+					// Nuevos campos para funcionalidad mejorada (preservando compatibilidad)
+					proofAnalysis,
+					urgency: (() => {
+						const item = {
+							numbers: (numbersByTx.get(txNumber) ?? []).map((n: any) => ({
+								estado: String(n?.estado || ''),
+								reservedAt: n?.reservedAt
+							})),
+							proofs: txProofs,
+							promo: (() => {
+								const ev = eventById.get(Number((tx as any)?.eventId ?? 0));
+								const eligible = Boolean(ev && Number((ev as any).price || 0) > 20000 && (ev as any).promoPrice != null);
+								const packSize = promoPackSize();
+								const cantidad = Math.max(0, Number((tx as any)?.cantidad ?? 0) || 0);
+								const missing = (packSize - (cantidad % packSize)) % packSize;
+								const expiresAt = String((tx as any)?.promoExpiresAt ?? '').trim();
+								const finalizedAt = String((tx as any)?.promoFinalizedAt ?? '').trim();
+								const nowMs = Date.now();
+								const expMs = expiresAt ? Date.parse(expiresAt) : NaN;
+								const active = Number.isFinite(expMs) && expMs > nowMs;
+								return {
+									eligible,
+									missing,
+									active,
+									expiresAt: expiresAt || null,
+									finalizedAt: finalizedAt || null,
+								};
+							})()
+						};
+						return calculateUrgency(item);
+					})(),
 					promo: (() => {
 						const ev = eventById.get(Number((tx as any)?.eventId ?? 0));
 						const eligible = Boolean(ev && Number((ev as any).price || 0) > 20000 && (ev as any).promoPrice != null);
@@ -439,7 +575,26 @@ export const GET: APIRoute = async ({ request }) => {
 				if (isPaymentMode) return (Number(it?.saldoPendiente || 0) || 0) > 0;
 				return (Number(it?.proofStats?.pending || 0) || 0) > 0;
 			})
-			.sort((a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+			.sort((a: any, b: any) => {
+				// Nueva lógica: ordenar por urgencia primero (solo en modo admin)
+				if (!isPaymentMode && !isPagosMode) {
+					const urgencyA = a.urgency || { urgencyScore: 0 };
+					const urgencyB = b.urgency || { urgencyScore: 0 };
+					
+					// Primero por score de urgencia (mayor primero)
+					if (urgencyB.urgencyScore !== urgencyA.urgencyScore) {
+						return urgencyB.urgencyScore - urgencyA.urgencyScore;
+					}
+					
+					// Si misma urgencia, por tiempo restante (menor primero)
+					if (urgencyA.timeToExpiry && urgencyB.timeToExpiry) {
+						return urgencyA.timeToExpiry - urgencyB.timeToExpiry;
+					}
+				}
+				
+				// Orden original por fecha (más reciente primero) - preservando lógica existente
+				return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+			});
 
 		return new Response(
 			JSON.stringify({

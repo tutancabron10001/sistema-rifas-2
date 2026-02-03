@@ -12,6 +12,11 @@ export default {
         // (Keep Tailwind defaults for pink/rose/blue; add a dedicated brand scale.)
         brand: colors.sky,
       },
+      gridTemplateColumns: {
+        // Custom grid columns para mejor visualización de números
+        '15': 'repeat(15, minmax(0, 1fr))',
+        '20': 'repeat(20, minmax(0, 1fr))',
+      },
     },
   },
   plugins: [],

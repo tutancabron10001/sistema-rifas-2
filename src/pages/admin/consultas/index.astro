@@ -14,9 +14,18 @@ if (!Astro.cookies.has("admin_session")) {
 
 const campaignList = await db.select().from(campaigns).orderBy(campaigns.createdAt);
 const eventList = await db.select().from(events).orderBy(events.createdAt);
+
+// Get current page from URL
+const url = Astro.url;
+const urlParams = new URLSearchParams(url.search);
+const mode = urlParams.get('mode') || 'admin';
+const currentPage = mode === 'admin' ? 'consultas-admin' : 
+                   mode === 'pago' ? 'consultas-pago' : 
+                   mode === 'pagos' ? 'consultas-pagos' : 
+                   mode === 'estados' ? 'consultas-estados' : 'consultas-admin';
 ---
 
-<AdminLayout title="Consultas" currentPage="consultas">
+<AdminLayout title="Consultas" currentPage={currentPage}>
   <!-- Page Header -->
   <div class="bg-white shadow-sm border-b border-gray-200">
     <div class="px-4 sm:px-6 lg:px-8 py-4">
@@ -41,8 +50,8 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
               </li>
             </ol>
           </nav>
-          <h1 class="mt-2 text-2xl font-bold text-gray-900">📋 Consultas Administrativas</h1>
-          <p class="mt-1 text-sm text-gray-500">Gestiona transacciones pendientes y comprobantes por validar</p>
+          <h1 class="mt-2 text-2xl font-bold text-gray-900" id="pageTitle">📋 Consultas Administrativas</h1>
+          <p class="mt-1 text-sm text-gray-500" id="pageDescription">Gestiona transacciones pendientes y comprobantes por validar</p>
         </div>
         <div class="flex items-center space-x-3">
           <button class="btn-primary">
@@ -58,26 +67,6 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
             Exportar
           </button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Filter Tabs -->
-  <div class="bg-white shadow-sm border-b border-gray-200">
-    <div class="px-4 sm:px-6 lg:px-8">
-      <div class="flex space-x-8">
-        <button id="pendingFilterAdmin" class="py-4 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600">
-          ✅ Pendientes del Administrador
-        </button>
-        <button id="pendingFilterPago" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-          💳 Pendientes de Pago
-        </button>
-        <button id="pendingFilterPagos" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-          💰 Pagos
-        </button>
-        <button id="pendingFilterEstados" class="py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
-          📊 Estados Financieros
-        </button>
       </div>
     </div>
   </div>
@@ -240,42 +229,57 @@ const eventList = await db.select().from(events).orderBy(events.createdAt);
   let currentPage = 1;
   const itemsPerPage = 10;
 
+  // Get URL parameters
+  function getUrlParameter(name) {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get(name);
+  }
+
+  // Update page content based on mode
+  function updatePageContent(mode) {
+    const pageTitle = document.getElementById('pageTitle');
+    const pageDescription = document.getElementById('pageDescription');
+    
+    const pageConfig = {
+      'admin': {
+        title: '✅ Pendientes del Administrador',
+        description: 'Resumen de transacciones con comprobantes pendientes y acciones para registrar pagos/abonos.'
+      },
+      'pago': {
+        title: '💳 Pendientes de Pago',
+        description: 'Transacciones que requieren confirmación de pago por parte de los usuarios.'
+      },
+      'pagos': {
+        title: '💰 Pagos',
+        description: 'Historial de pagos completados y confirmados en el sistema.'
+      },
+      'estados': {
+        title: '📊 Estados Financieros',
+        description: 'Resumen financiero general del sistema de rifas.'
+      }
+    };
+    
+    const config = pageConfig[mode] || pageConfig['admin'];
+    pageTitle.textContent = config.title;
+    pageDescription.textContent = config.description;
+  }
+
   // Initialize page
   document.addEventListener('DOMContentLoaded', function() {
+    // Get mode from URL parameter
+    const urlMode = getUrlParameter('mode') || 'admin';
+    currentMode = urlMode;
+    
+    // Update page content
+    updatePageContent(currentMode);
+    
+    // Load data
     loadPendingActions(currentMode);
-    setupEventListeners();
   });
 
   // Setup event listeners
   function setupEventListeners() {
-    // Filter tabs
-    document.querySelectorAll('.border-b-2').forEach(tab => {
-      tab.addEventListener('click', function() {
-        // Remove active state from all tabs
-        document.querySelectorAll('.border-b-2').forEach(t => {
-          t.classList.remove('border-blue-500', 'text-blue-600');
-          t.classList.add('border-transparent', 'text-gray-500');
-        });
-        
-        // Add active state to clicked tab
-        this.classList.remove('border-transparent', 'text-gray-500');
-        this.classList.add('border-blue-500', 'text-blue-600');
-        
-        // Load corresponding data
-        const tabText = this.textContent.trim();
-        if (tabText.includes('Pendientes del Administrador')) {
-          currentMode = 'admin';
-        } else if (tabText.includes('Pendientes de Pago')) {
-          currentMode = 'payment';
-        } else if (tabText.includes('Pagos')) {
-          currentMode = 'pagos';
-        } else if (tabText.includes('Estados Financieros')) {
-          currentMode = 'estados';
-        }
-        
-        loadPendingActions(currentMode);
-      });
-    });
+    // No need for tab listeners since they're in sidebar now
   }
 
   // Load pending actions (existing function)
